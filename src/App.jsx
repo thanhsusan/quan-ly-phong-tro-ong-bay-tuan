@@ -1,6 +1,6 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+﻿import React, { useState, useEffect, createContext, useContext, useCallback, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, getDoc, setDoc, getDocs } from 'firebase/firestore';
 
 // Context để chia sẻ trạng thái Firebase và người dùng
@@ -26,46 +26,71 @@ const FirebaseProvider = ({ children }) => {
     const [auth, setAuth] = useState(null);
     const [userId, setUserId] = useState(null);
     const [loadingFirebase, setLoadingFirebase] = useState(true);
+    const [isAuthReady, setIsAuthReady] = useState(false); // New state to track auth readiness
 
     useEffect(() => {
         const initializeFirebase = async () => {
             try {
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-                const app = initializeApp(firebaseConfig);
+                // User-provided Firebase config
+                const userProvidedFirebaseConfig = {
+                    apiKey: "AIzaSyA0qRdQY0pyHwUmSp9I6B-pRTQnjCGGRYM",
+                    authDomain: "quan-ly-phong-tro-ong-bay-tuan.firebaseapp.com",
+                    projectId: "quan-ly-phong-tro-ong-bay-tuan",
+                    storageBucket: "quan-ly-phong-tro-ong-bay-tuan.firebasestorage.app",
+                    messagingSenderId: "346457486330",
+                    appId: "1:346457486330:web:29e8ed926fc6a600b96a43",
+                    measurementId: "G-74WZ5DPPC8"
+                };
+
+                let firebaseConfigToUse = userProvidedFirebaseConfig;
+
+                // Check if __firebase_config is defined and not empty, then use it
+                if (typeof __firebase_config !== 'undefined' && Object.keys(JSON.parse(__firebase_config)).length > 0) {
+                    firebaseConfigToUse = JSON.parse(__firebase_config);
+                }
+
+                const app = initializeApp(firebaseConfigToUse);
                 const firestore = getFirestore(app);
                 const authInstance = getAuth(app);
 
                 setDb(firestore);
                 setAuth(authInstance);
 
-                // Đăng nhập người dùng
-                if (typeof __initial_auth_token !== 'undefined') {
-                    await signInWithCustomToken(authInstance, __initial_auth_token);
-                } else {
-                    await signInAnonymously(authInstance);
-                }
-
                 // Lắng nghe thay đổi trạng thái xác thực
-                onAuthStateChanged(authInstance, (user) => {
+                onAuthStateChanged(authInstance, async (user) => {
                     if (user) {
                         setUserId(user.uid);
                     } else {
-                        // Nếu người dùng đăng xuất, thiết lập lại userId
-                        setUserId(null);
+                        // Nếu người dùng đăng xuất hoặc chưa đăng nhập, thử đăng nhập ẩn danh
+                        try {
+                            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(authInstance, initialAuthToken);
+                            } else {
+                                await signInAnonymously(authInstance);
+                            }
+                            setUserId(authInstance.currentUser?.uid); // Set userId from current user after sign-in
+                        } catch (anonError) {
+                            console.error("Lỗi đăng nhập ẩn danh:", anonError);
+                            setUserId(null); // Explicitly null if anonymous sign-in fails
+                        }
                     }
+                    setIsAuthReady(true); // Auth state has been checked
                     setLoadingFirebase(false);
                 });
 
             } catch (error) {
                 console.error("Lỗi khi khởi tạo Firebase:", error);
                 setLoadingFirebase(false);
+                setIsAuthReady(true); // Still set to true to unblock the app, even if init failed
             }
         };
 
         initializeFirebase();
     }, []);
 
-    if (loadingFirebase) {
+    // Wait for Firebase to be initialized and auth state to be ready
+    if (loadingFirebase || !isAuthReady) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-100">
                 <div className="text-lg font-semibold text-gray-700">Đang tải ứng dụng...</div>
@@ -74,15 +99,15 @@ const FirebaseProvider = ({ children }) => {
     }
 
     return (
-        <FirebaseContext.Provider value={{ db, auth, userId }}>
+        <FirebaseContext.Provider value={{ db, auth, userId, isAuthReady }}>
             {children}
         </FirebaseContext.Provider>
     );
 };
 
 // Component Modal tùy chỉnh thay thế alert/confirm
-const CustomModal = ({ title, message, onConfirm, onCancel, showCancel = true }) => {
-    if (!message) return null; // Không hiển thị modal nếu không có tin nhắn
+const CustomModal = ({ title, message, onConfirm, onCancel, showCancel = true, showModal }) => {
+    if (!showModal) return null; // Không hiển thị modal nếu showModal là false
 
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -111,19 +136,23 @@ const CustomModal = ({ title, message, onConfirm, onCancel, showCancel = true })
 };
 
 // Component để xử lý thanh toán hóa đơn
-const PaymentModal = ({ bill, onClose, onProcessPayment, setModalMessage, setModalTitle, setShowCancelModal, setModalAction }) => {
+const PaymentModal = ({ bill, onClose, onProcessPayment, setModalState }) => {
     const [paymentAmount, setPaymentAmount] = useState(bill.remainingAmount || bill.totalAmount);
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    const handlePayment = () => {
+    const handlePayment = async () => {
         if (paymentAmount <= 0) {
-            setModalTitle("Lỗi");
-            setModalMessage("Số tiền thanh toán phải lớn hơn 0.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            setModalState({
+                title: "Lỗi",
+                message: "Số tiền thanh toán phải lớn hơn 0.",
+                showCancel: false,
+                action: () => setModalState({ showModal: false })
+            });
             return;
         }
-        // Cho phép thanh toán dư để cấn trừ nợ tổng
-        onProcessPayment(bill.id, bill.roomId, paymentAmount);
+        setIsProcessing(true);
+        await onProcessPayment(bill.id, bill.roomId, paymentAmount);
+        setIsProcessing(false);
         onClose();
     };
 
@@ -143,18 +172,20 @@ const PaymentModal = ({ bill, onClose, onProcessPayment, setModalMessage, setMod
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         min="0"
                         step="1000"
+                        disabled={isProcessing}
                     />
                 </div>
             }
             onConfirm={handlePayment}
             onCancel={onClose}
             showCancel={true}
+            showModal={true} // Luôn hiển thị khi component này được render
         />
     );
 };
 
 // Component để hiển thị chi tiết hóa đơn
-const BillDetailModal = ({ bill, onClose }) => { // Removed onGenerateTenantMessage prop
+const BillDetailModal = ({ bill, onClose, onEdit, onDelete }) => {
     if (!bill) return null;
 
     const getPaymentStatusText = (status) => {
@@ -220,11 +251,22 @@ const BillDetailModal = ({ bill, onClose }) => { // Removed onGenerateTenantMess
                     <p><strong>Ngày tạo hóa đơn:</strong> {formatDisplayDate(bill.billDate)}</p>
                     {bill.paymentDate && <p><strong>Ngày thanh toán:</strong> {formatDisplayDate(bill.paymentDate)}</p>}
                 </div>
-                <div className="flex justify-end space-x-3">
-                    {/* Removed Gemini message button */}
+                <div className="flex justify-end space-x-2 sm:space-x-3">
+                    <button
+                        onClick={() => onEdit(bill)} // Call onEdit with the current bill
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-yellow-500 text-white rounded-md text-sm sm:text-base hover:bg-yellow-600 transition duration-200"
+                    >
+                        Sửa
+                    </button>
+                    <button
+                        onClick={() => { onDelete(bill); onClose(); }} // Call onDelete and then close modal
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-red-500 text-white rounded-md text-sm sm:text-base hover:bg-red-600 transition duration-200"
+                    >
+                        Xóa
+                    </button>
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition duration-200"
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-gray-200 text-gray-800 rounded-md text-sm sm:text-base hover:bg-gray-300 transition duration-200"
                     >
                         Đóng
                     </button>
@@ -234,34 +276,164 @@ const BillDetailModal = ({ bill, onClose }) => { // Removed onGenerateTenantMess
     );
 };
 
-// Removed GeminiMessageModal component
+// Component Đăng nhập
+const LoginScreen = ({ auth, setModalState }) => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsProcessing(true);
+        setModalState({
+            title: "Thông báo",
+            message: "Đang xử lý...",
+            showCancel: false,
+            action: null, // Disable action button
+            showModal: true
+        });
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            setModalState({
+                title: "Thành công",
+                message: "Đăng nhập thành công!",
+                showCancel: false,
+                action: () => setModalState({ showModal: false }),
+                showModal: true
+            });
+        } catch (error) {
+            console.error("Lỗi xác thực:", error);
+            let errorMessage = "Đăng nhập thất bại. Vui lòng kiểm tra lại Email và Mật khẩu.";
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                errorMessage = "Email hoặc mật khẩu không đúng.";
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = "Địa chỉ Email không hợp lệ.";
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau.";
+            }
+            setModalState({
+                title: "Lỗi Đăng nhập",
+                message: errorMessage,
+                showCancel: false,
+                action: () => setModalState({ showModal: false }), // Close modal
+                showModal: true
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
+                <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+                    Đăng nhập Quản Lý Phòng Trọ
+                </h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            disabled={isProcessing}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">Mật khẩu</label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            disabled={isProcessing}
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isProcessing}
+                    >
+                        {isProcessing ? 'Đang đăng nhập...' : 'Đăng nhập'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 // Component chính của ứng dụng
 function App() {
-    const { db, userId, loadingFirebase } = useContext(FirebaseContext);
+    const { db, auth, userId, loadingFirebase, isAuthReady } = useContext(FirebaseContext);
     const [rooms, setRooms] = useState([]);
     const [serviceSettings, setServiceSettings] = useState(null);
-    const [bills, setBills] = useState([]); // State để lưu trữ hóa đơn
-    const [expenses, setExpenses] = useState([]); // State để lưu trữ chi phí
-    const [currentPage, setCurrentPage] = useState('roomList'); // 'roomList', 'addRoom', 'editRoom', 'serviceSettings', 'billGenerator', 'billHistory', 'expenseManagement', 'financialOverview'
+    const [bills, setBills] = useState([]);
+    const [expenses, setExpenses] = useState([]);
+    const [currentPage, setCurrentPage] = useState('roomList');
     const [selectedRoom, setSelectedRoom] = useState(null);
-    const [modalMessage, setModalMessage] = useState('');
-    const [modalTitle, setModalTitle] = useState('');
-    const [modalAction, setModalAction] = useState(null);
-    const [showCancelModal, setShowCancelModal] = useState(true);
+
+    // State cho CustomModal
+    const [modalState, setModalState] = useState({
+        showModal: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        onCancel: null,
+        showCancel: true,
+    });
+
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [billToPay, setBillToPay] = useState(null);
     const [showBillDetailModal, setShowBillDetailModal] = useState(false);
     const [billToView, setBillToView] = useState(null);
-    // Removed Gemini related states: showGeminiMessageModal, geminiMessageContent
+
+    // New states for editing bills
+    const [showBillEditForm, setShowBillEditForm] = useState(false);
+    const [billToEdit, setBillToEdit] = useState(null);
 
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+    // Hàm hiển thị modal thông báo
+    const showInfoModal = useCallback((title, message, onConfirm = () => setModalState({ showModal: false }), showCancel = false) => {
+        setModalState({
+            showModal: true,
+            title: title,
+            message: message,
+            onConfirm: onConfirm,
+            onCancel: () => setModalState({ showModal: false }),
+            showCancel: showCancel,
+        });
+    }, []);
+
+    // Hàm hiển thị modal xác nhận
+    const showConfirmModal = useCallback((title, message, onConfirmAction) => {
+        setModalState({
+            showModal: true,
+            title: title,
+            message: message,
+            onConfirm: async () => {
+                await onConfirmAction();
+                setModalState({ showModal: false }); // Đóng modal sau khi hành động xác nhận hoàn tất
+            },
+            onCancel: () => setModalState({ showModal: false }),
+            showCancel: true,
+        });
+    }, []);
+
     // Lắng nghe dữ liệu phòng từ Firestore
     useEffect(() => {
-        if (!db || !userId) return;
+        // Only fetch data if db, userId are available AND auth state is ready
+        if (!db || !userId || !isAuthReady) return;
 
+        console.log("Fetching rooms for appId:", appId, "userId:", userId); // DEBUG LOG
         const roomsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/rooms`);
         const q = query(roomsCollectionRef);
 
@@ -270,7 +442,6 @@ function App() {
                 id: doc.id,
                 ...doc.data()
             }));
-            // Sắp xếp theo số phòng
             roomsData.sort((a, b) => {
                 const roomA = parseInt(a.roomNumber.replace(/\D/g, ''), 10);
                 const roomB = parseInt(b.roomNumber.replace(/\D/g, ''), 10);
@@ -279,48 +450,45 @@ function App() {
             setRooms(roomsData);
         }, (error) => {
             console.error("Lỗi khi tải dữ liệu phòng:", error);
-            setModalTitle("Lỗi");
-            setModalMessage("Không thể tải dữ liệu phòng. Vui lòng thử lại.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", "Không thể tải dữ liệu phòng. Vui lòng thử lại.");
         });
 
         return () => unsubscribe();
-    }, [db, userId, appId]);
+    }, [db, userId, appId, showInfoModal, isAuthReady]); // Add isAuthReady to dependencies
 
     // Lắng nghe cài đặt dịch vụ từ Firestore
     useEffect(() => {
-        if (!db || !userId) return;
+        // Only fetch data if db, userId are available AND auth state is ready
+        if (!db || !userId || !isAuthReady) return;
 
+        console.log("Fetching settings for appId:", appId, "userId:", userId); // DEBUG LOG
         const settingsDocRef = doc(db, `artifacts/${appId}/users/${userId}/serviceSettings`, 'settingsDoc');
 
         const unsubscribe = onSnapshot(settingsDocRef, (docSnap) => {
             if (docSnap.exists()) {
                 setServiceSettings(docSnap.data());
             } else {
-                // Thiết lập giá trị mặc định nếu chưa có cài đặt
                 setServiceSettings({
-                    electricityPrice: 3000, // VNĐ/kWh
-                    waterPrice: 15000,    // VNĐ/m3
-                    internetPrice: 100000, // VNĐ/tháng
-                    trashPrice: 20000      // VNĐ/tháng
+                    electricityPrice: 3000,
+                    waterPrice: 15000,
+                    internetPrice: 100000,
+                    trashPrice: 20000
                 });
             }
         }, (error) => {
             console.error("Lỗi khi tải cài đặt dịch vụ:", error);
-            setModalTitle("Lỗi");
-            setModalMessage("Không thể tải cài đặt dịch vụ. Vui lòng thử lại.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", "Không thể tải cài đặt dịch vụ. Vui lòng thử lại.");
         });
 
         return () => unsubscribe();
-    }, [db, userId, appId]);
+    }, [db, userId, appId, showInfoModal, isAuthReady]); // Add isAuthReady to dependencies
 
     // Lắng nghe dữ liệu hóa đơn từ Firestore
     useEffect(() => {
-        if (!db || !userId) return;
+        // Only fetch data if db, userId are available AND auth state is ready
+        if (!db || !userId || !isAuthReady) return;
 
+        console.log("Fetching bills for appId:", appId, "userId:", userId); // DEBUG LOG
         const billsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/bills`);
         const q = query(billsCollectionRef);
 
@@ -329,24 +497,22 @@ function App() {
                 id: doc.id,
                 ...doc.data()
             }));
-            // Sắp xếp hóa đơn theo ngày tạo mới nhất (mới lên trên, cũ xuống dưới)
             billsData.sort((a, b) => new Date(b.billDate) - new Date(a.billDate));
             setBills(billsData);
         }, (error) => {
             console.error("Lỗi khi tải dữ liệu hóa đơn:", error);
-            setModalTitle("Lỗi");
-            setModalMessage("Không thể tải dữ liệu hóa đơn. Vui lòng thử lại.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", "Không thể tải dữ liệu hóa đơn. Vui lòng thử lại.");
         });
 
         return () => unsubscribe();
-    }, [db, userId, appId]);
+    }, [db, userId, appId, showInfoModal, isAuthReady]); // Add isAuthReady to dependencies
 
     // Lắng nghe dữ liệu chi phí từ Firestore
     useEffect(() => {
-        if (!db || !userId) return;
+        // Only fetch data if db, userId are available AND auth state is ready
+        if (!db || !userId || !isAuthReady) return;
 
+        console.log("Fetching expenses for appId:", appId, "userId:", userId); // DEBUG LOG
         const expensesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/expenses`);
         const q = query(expensesCollectionRef);
 
@@ -355,26 +521,20 @@ function App() {
                 id: doc.id,
                 ...doc.data()
             }));
-            expensesData.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sắp xếp theo ngày mới nhất
+            expensesData.sort((a, b) => new Date(b.date) - new Date(a.date));
             setExpenses(expensesData);
         }, (error) => {
             console.error("Lỗi khi tải dữ liệu chi phí:", error);
-            setModalTitle("Lỗi");
-            setModalMessage("Không thể tải dữ liệu chi phí. Vui lòng thử lại.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", "Không thể tải dữ liệu chi phí. Vui lòng thử lại.");
         });
 
         return () => unsubscribe();
-    }, [db, userId, appId]);
+    }, [db, userId, appId, showInfoModal, isAuthReady]); // Add isAuthReady to dependencies
 
     // Hàm thêm/cập nhật phòng
-    const handleSaveRoom = async (roomData) => {
+    const handleSaveRoom = useCallback(async (roomData) => {
         if (!db || !userId) {
-            setModalTitle("Lỗi");
-            setModalMessage("Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
             return;
         }
 
@@ -382,99 +542,68 @@ function App() {
             const roomsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/rooms`);
 
             if (roomData.id) {
-                // Cập nhật phòng hiện có
                 const roomRef = doc(roomsCollectionRef, roomData.id);
-                // Destructure để loại bỏ 'id' khỏi dữ liệu đang được cập nhật
                 const { id, ...dataToUpdate } = roomData;
                 await updateDoc(roomRef, dataToUpdate);
-                setModalTitle("Thành công");
-                setModalMessage("Thông tin phòng đã được cập nhật!");
+                showInfoModal("Thành công", "Thông tin phòng đã được cập nhật!", () => {
+                    setModalState({ showModal: false });
+                    setCurrentPage('roomList');
+                    setSelectedRoom(null);
+                });
             } else {
-                // Thêm phòng mới
-                // Destructure để đảm bảo 'id' không được truyền vào addDoc, vì Firestore sẽ tự tạo
                 const { id, ...dataToAdd } = roomData;
                 await addDoc(roomsCollectionRef, dataToAdd);
-                setModalTitle("Thành công");
-                setModalMessage("Phòng mới đã được thêm!");
+                showInfoModal("Thành công", "Phòng mới đã được thêm!", () => {
+                    setModalState({ showModal: false });
+                    setCurrentPage('roomList');
+                    setSelectedRoom(null);
+                });
             }
-            setShowCancelModal(false);
-            setModalAction(() => () => {
-                setModalMessage('');
-                setCurrentPage('roomList');
-                setSelectedRoom(null);
-            });
         } catch (error) {
             console.error("Lỗi khi lưu phòng:", error);
-            setModalTitle("Lỗi");
-            setModalMessage(`Không thể lưu phòng: ${error.message}`);
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", `Không thể lưu phòng: ${error.message}`);
         }
-    };
+    }, [db, userId, appId, showInfoModal]);
 
     // Hàm xóa phòng
-    const handleDeleteRoom = (room) => {
-        setModalTitle("Xác nhận xóa");
-        setModalMessage(`Bạn có chắc chắn muốn xóa phòng "${room.roomNumber}" không?`);
-        setShowCancelModal(true);
-        setModalAction(() => async () => {
+    const handleDeleteRoom = useCallback((room) => {
+        showConfirmModal(`Xác nhận xóa Phòng ${room.roomNumber}`, `Bạn có chắc chắn muốn xóa phòng "${room.roomNumber}" không?`, async () => {
             if (!db || !userId) {
-                setModalTitle("Lỗi");
-                setModalMessage("Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
-                setShowCancelModal(false);
-                setModalAction(() => () => setModalMessage(''));
+                showInfoModal("Lỗi", "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
                 return;
             }
             try {
                 const roomsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/rooms`);
                 const roomRef = doc(roomsCollectionRef, room.id);
                 await deleteDoc(roomRef);
-                setModalTitle("Thành công");
-                setModalMessage("Phòng đã được xóa.");
-                setShowCancelModal(false);
-                setModalAction(() => () => setModalMessage(''));
+                showInfoModal("Thành công", "Phòng đã được xóa.");
             } catch (error) {
                 console.error("Lỗi khi xóa phòng:", error);
-                setModalTitle("Lỗi");
-                setModalMessage(`Không thể xóa phòng: ${error.message}`);
-                setShowCancelModal(false);
-                setModalAction(() => () => setModalMessage(''));
+                showInfoModal("Lỗi", `Không thể xóa phòng: ${error.message}`);
             }
         });
-    };
+    }, [db, userId, appId, showConfirmModal, showInfoModal]);
 
     // Hàm lưu cài đặt dịch vụ
-    const handleSaveServiceSettings = async (settingsData) => {
+    const handleSaveServiceSettings = useCallback(async (settingsData) => {
         if (!db || !userId) {
-            setModalTitle("Lỗi");
-            setModalMessage("Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
             return;
         }
         try {
             const settingsDocRef = doc(db, `artifacts/${appId}/users/${userId}/serviceSettings`, 'settingsDoc');
-            await setDoc(settingsDocRef, settingsData, { merge: true }); // Dùng setDoc với merge để cập nhật hoặc tạo mới
-            setModalTitle("Thành công");
-            setModalMessage("Cài đặt dịch vụ đã được cập nhật!");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            await setDoc(settingsDocRef, settingsData, { merge: true });
+            showInfoModal("Thành công", "Cài đặt dịch vụ đã được cập nhật!");
         } catch (error) {
             console.error("Lỗi khi lưu cài đặt dịch vụ:", error);
-            setModalTitle("Lỗi");
-            setModalMessage(`Không thể lưu cài đặt dịch vụ: ${error.message}`);
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", `Không thể lưu cài đặt dịch vụ: ${error.message}`);
         }
-    };
+    }, [db, userId, appId, showInfoModal]);
 
     // Hàm xử lý thanh toán hóa đơn (từ PaymentModal)
-    const handleProcessPayment = async (billId, roomId, paymentAmount) => {
+    const handleProcessPayment = useCallback(async (billId, roomId, paymentAmount) => {
         if (!db || !userId) {
-            setModalTitle("Lỗi");
-            setModalMessage("Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
             return;
         }
 
@@ -482,15 +611,11 @@ function App() {
             const billRef = doc(collection(db, `artifacts/${appId}/users/${userId}/bills`), billId);
             const roomRef = doc(collection(db, `artifacts/${appId}/users/${userId}/rooms`), roomId);
 
-            // Lấy dữ liệu hóa đơn và phòng hiện tại
             const billSnap = await getDoc(billRef);
             const roomSnap = await getDoc(roomRef);
 
             if (!billSnap.exists() || !roomSnap.exists()) {
-                setModalTitle("Lỗi");
-                setModalMessage("Không tìm thấy hóa đơn hoặc phòng để cập nhật.");
-                setShowCancelModal(false);
-                setModalAction(() => () => setModalMessage(''));
+                showInfoModal("Lỗi", "Không tìm thấy hóa đơn hoặc phòng để cập nhật.");
                 return;
             }
 
@@ -503,131 +628,165 @@ function App() {
 
             if (newRemainingAmountForBill <= 0) {
                 newPaymentStatus = 'Paid';
-                newRemainingAmountForBill = 0; // Đảm bảo không âm
+                newRemainingAmountForBill = 0;
             }
 
-            // Cập nhật hóa đơn
             await updateDoc(billRef, {
                 paidAmount: newPaidAmountForBill,
                 remainingAmount: newRemainingAmountForBill,
                 paymentStatus: newPaymentStatus,
-                paymentDate: new Date().toISOString().split('T')[0] // Cập nhật ngày thanh toán
+                paymentDate: new Date().toISOString().split('T')[0]
             });
 
-            // Cập nhật tổng nợ của phòng: trừ đi số tiền vừa thanh toán
             const currentRoomDebt = currentRoomData.debtAmount || 0;
-            const updatedRoomDebt = Math.max(0, currentRoomDebt - paymentAmount); // Cho phép thanh toán dư để cấn trừ nợ
+            const updatedRoomDebt = Math.max(0, currentRoomDebt - paymentAmount);
 
             await updateDoc(roomRef, {
                 debtAmount: updatedRoomDebt,
                 lastPaymentDate: new Date().toISOString().split('T')[0]
             });
 
-            setModalTitle("Thành công");
-            setModalMessage("Thanh toán đã được xử lý và thông tin đã được cập nhật.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Thành công", "Thanh toán đã được xử lý và thông tin đã được cập nhật.");
         } catch (error) {
             console.error("Lỗi khi xử lý thanh toán:", error);
-            setModalTitle("Lỗi");
-            setModalMessage(`Không thể xử lý thanh toán: ${error.message}`);
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", `Không thể xử lý thanh toán: ${error.message}`);
         }
-    };
+    }, [db, userId, appId, showInfoModal]);
 
     // Hàm thêm chi phí
-    const handleAddExpense = async (expenseData) => {
+    const handleAddExpense = useCallback(async (expenseData) => {
         if (!db || !userId) {
-            setModalTitle("Lỗi");
-            setModalMessage("Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
             return;
         }
         try {
             const expensesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/expenses`);
             await addDoc(expensesCollectionRef, expenseData);
-            setModalTitle("Thành công");
-            setModalMessage("Chi phí đã được thêm!");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Thành công", "Chi phí đã được thêm!");
         } catch (error) {
             console.error("Lỗi khi thêm chi phí:", error);
-            setModalTitle("Lỗi");
-            setModalMessage(`Không thể thêm chi phí: ${error.message}`);
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            showInfoModal("Lỗi", `Không thể thêm chi phí: ${error.message}`);
         }
-    };
+    }, [db, userId, appId, showInfoModal]);
 
     // Hàm xóa chi phí
-    const handleDeleteExpense = async (expenseId) => {
-        if (!db || !userId) {
-            setModalTitle("Lỗi");
-            setModalMessage("Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
-            return;
-        }
-        setModalTitle("Xác nhận xóa");
-        setModalMessage("Bạn có chắc chắn muốn xóa chi phí này không?");
-        setShowCancelModal(true);
-        setModalAction(() => async () => {
+    const handleDeleteExpense = useCallback((expenseId) => {
+        showConfirmModal("Xác nhận xóa", "Bạn có chắc chắn muốn xóa chi phí này không?", async () => {
+            if (!db || !userId) {
+                showInfoModal("Lỗi", "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
+                return;
+            }
             try {
                 const expenseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/expenses`), expenseId);
                 await deleteDoc(expenseRef);
-                setModalTitle("Thành công");
-                setModalMessage("Chi phí đã được xóa.");
-                setShowCancelModal(false);
-                setModalAction(() => () => setModalMessage(''));
+                showInfoModal("Thành công", "Chi phí đã được xóa.");
             } catch (error) {
                 console.error("Lỗi khi xóa chi phí:", error);
-                setModalTitle("Lỗi");
-                setModalMessage(`Không thể xóa chi phí: ${error.message}`);
-                setShowCancelModal(false);
-                setModalAction(() => () => setModalMessage(''));
+                showInfoModal("Lỗi", `Không thể xóa chi phí: ${error.message}`);
             }
         });
-    };
+    }, [db, userId, appId, showConfirmModal, showInfoModal]);
 
-    // Hàm hiển thị chi tiết phòng hoặc form chỉnh sửa
-    const handleViewRoom = (room) => {
-        setSelectedRoom(room);
-        setCurrentPage('roomDetail');
-    };
-
-    const handleEditRoom = (room) => {
-        setSelectedRoom(room);
-        setCurrentPage('editRoom');
-    };
-
-    const handleCancelModal = () => {
-        setModalMessage('');
-        setModalAction(null);
-    };
-
-    const handleOpenPaymentModal = (bill) => {
+    const handleOpenPaymentModal = useCallback((bill) => {
         setBillToPay(bill);
         setShowPaymentModal(true);
-    };
+    }, []);
 
-    const handleClosePaymentModal = () => {
+    const handleClosePaymentModal = useCallback(() => {
         setShowPaymentModal(false);
         setBillToPay(null);
-    };
+    }, []);
 
-    const handleOpenBillDetailModal = (bill) => {
+    const handleOpenBillDetailModal = useCallback((bill) => {
         setBillToView(bill);
         setShowBillDetailModal(true);
-    };
+    }, []);
 
-    const handleCloseBillDetailModal = () => {
+    const handleCloseBillDetailModal = useCallback(() => {
         setShowBillDetailModal(false);
         setBillToView(null);
-    };
+    }, []);
 
-    if (loadingFirebase) {
+    // New handlers for editing bills
+    const handleOpenBillEditForm = useCallback((bill) => {
+        setBillToEdit(bill);
+        setShowBillEditForm(true);
+        setShowBillDetailModal(false); // Close detail modal when opening edit form
+    }, []);
+
+    const handleCloseBillEditForm = useCallback(() => {
+        setShowBillEditForm(false);
+        setBillToEdit(null);
+    }, []);
+
+    const handleSaveEditedBill = useCallback(async (updatedBillData) => {
+        if (!db || !userId) {
+            showInfoModal("Lỗi", "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
+            return;
+        }
+        try {
+            const billRef = doc(collection(db, `artifacts/${appId}/users/${userId}/bills`), updatedBillData.id);
+            // Calculate remainingAmount and paymentStatus based on updated data
+            const newRemainingAmount = updatedBillData.totalAmount - updatedBillData.paidAmount;
+            let newPaymentStatus = 'Partially Paid';
+            if (newRemainingAmount <= 0) {
+                newPaymentStatus = 'Paid';
+            } else if (updatedBillData.paidAmount === 0) {
+                newPaymentStatus = 'Unpaid';
+            }
+
+            await updateDoc(billRef, {
+                ...updatedBillData,
+                remainingAmount: Math.max(0, newRemainingAmount), // Ensure it's not negative
+                paymentStatus: newPaymentStatus,
+                // Only update paymentDate if it becomes fully paid or partially paid from unpaid
+                paymentDate: newPaymentStatus !== 'Unpaid' && !updatedBillData.paymentDate && updatedBillData.paidAmount > 0 ? new Date().toISOString().split('T')[0] : updatedBillData.paymentDate
+            });
+
+            showInfoModal("Thành công", "Hóa đơn đã được cập nhật!", () => {
+                setModalState({ showModal: false });
+                handleCloseBillEditForm();
+            });
+        } catch (error) {
+            console.error("Lỗi khi cập nhật hóa đơn:", error);
+            showInfoModal("Lỗi", `Không thể cập nhật hóa đơn: ${error.message}`);
+        }
+    }, [db, userId, appId, showInfoModal, handleCloseBillEditForm]);
+
+
+    // Redefine handleDeleteBill to include room debt adjustment
+    const handleDeleteBill = useCallback((bill) => {
+        showConfirmModal(`Xác nhận xóa Hóa đơn ${bill.invoiceCode}`, `Bạn có chắc chắn muốn xóa hóa đơn này không? Thao tác này sẽ không hoàn tác được và có thể ảnh hưởng đến tổng nợ của phòng.`, async () => {
+            if (!db || !userId) {
+                showInfoModal("Lỗi", "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
+                return;
+            }
+            try {
+                const billRef = doc(collection(db, `artifacts/${appId}/users/${userId}/bills`), bill.id);
+                await deleteDoc(billRef);
+
+                // Revert room debt if this bill contributed to it and was not fully paid
+                if (bill.remainingAmount > 0) {
+                    const roomRef = doc(collection(db, `artifacts/${appId}/users/${userId}/rooms`), bill.roomId);
+                    const roomSnap = await getDoc(roomRef);
+                    if (roomSnap.exists()) {
+                        const currentRoomData = roomSnap.data();
+                        // Subtract the remaining amount of the deleted bill from the room's total debt
+                        const updatedRoomDebt = Math.max(0, (currentRoomData.debtAmount || 0) - bill.remainingAmount);
+                        await updateDoc(roomRef, { debtAmount: updatedRoomDebt });
+                    }
+                }
+
+                showInfoModal("Thành công", "Hóa đơn đã được xóa.");
+            } catch (error) {
+                console.error("Lỗi khi xóa hóa đơn:", error);
+                showInfoModal("Lỗi", `Không thể xóa hóa đơn: ${error.message}`);
+            }
+        });
+    }, [db, userId, appId, showConfirmModal, showInfoModal]);
+
+
+    if (loadingFirebase || !isAuthReady) { // Wait for Firebase to be initialized and auth state to be ready
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-100">
                 <div className="text-lg font-semibold text-gray-700">Đang tải ứng dụng...</div>
@@ -635,40 +794,62 @@ function App() {
         );
     }
 
+    if (!userId) {
+        return (
+            <LoginScreen
+                auth={auth}
+                setModalState={setModalState}
+            />
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col font-inter">
-            {modalMessage && (
-                <CustomModal
-                    title={modalTitle}
-                    message={modalMessage}
-                    onConfirm={modalAction}
-                    onCancel={handleCancelModal}
-                    showCancel={showCancelModal}
-                />
-            )}
+            <CustomModal
+                showModal={modalState.showModal}
+                title={modalState.title}
+                message={modalState.message}
+                onConfirm={modalState.onConfirm}
+                onCancel={modalState.onCancel}
+                showCancel={modalState.showCancel}
+            />
             {showPaymentModal && billToPay && (
                 <PaymentModal
                     bill={billToPay}
                     onClose={handleClosePaymentModal}
                     onProcessPayment={handleProcessPayment}
-                    setModalMessage={setModalMessage}
-                    setModalTitle={setModalTitle}
-                    setShowCancelModal={setShowCancelModal}
-                    setModalAction={setModalAction}
+                    setModalState={setModalState}
                 />
             )}
             {showBillDetailModal && billToView && (
                 <BillDetailModal
                     bill={billToView}
                     onClose={handleCloseBillDetailModal}
+                    onEdit={handleOpenBillEditForm} // Pass the new handler
+                    onDelete={handleDeleteBill} // Pass the delete handler
+                />
+            )}
+            {showBillEditForm && billToEdit && (
+                <BillEditForm
+                    bill={billToEdit}
+                    onSave={handleSaveEditedBill}
+                    onCancel={handleCloseBillEditForm}
+                    rooms={rooms} // Pass rooms for room number display if needed
+                    serviceSettings={serviceSettings} // Pass settings if any service prices are editable
                 />
             )}
 
             <header className="bg-blue-600 text-white p-4 shadow-md">
                 <div className="container mx-auto flex justify-between items-center">
-                    <h1 className="text-xl sm:text-2xl font-bold">QUẢN LÝ PHÒNG TRỌ - ÔNG BẢY TUẤN</h1> {/* Uppercase and bold */}
-                    <div className="text-xs sm:text-sm">
-                        User ID: <span className="font-mono text-blue-200 break-all">{userId}</span>
+                    <h1 className="text-xl sm:text-2xl font-bold">QUẢN LÝ PHÒNG TRỌ - ÔNG BẢY TUẤN</h1>
+                    <div className="text-xs sm:text-sm flex items-center space-x-2">
+                        <span>User ID: <span className="font-mono text-blue-200 break-all">{userId}</span></span>
+                        <button
+                            onClick={() => signOut(auth)}
+                            className="px-2 py-1 bg-blue-700 text-white rounded-md text-xs hover:bg-blue-800 transition duration-200"
+                        >
+                            Đăng xuất
+                        </button>
                     </div>
                 </div>
             </header>
@@ -724,8 +905,8 @@ function App() {
                 {currentPage === 'roomList' && (
                     <RoomList
                         rooms={rooms}
-                        onViewRoom={handleViewRoom}
-                        onEditRoom={handleEditRoom}
+                        onViewRoom={(room) => { setSelectedRoom(room); setCurrentPage('roomDetail'); }}
+                        onEditRoom={(room) => { setSelectedRoom(room); setCurrentPage('editRoom'); }}
                         onDeleteRoom={handleDeleteRoom}
                     />
                 )}
@@ -746,8 +927,8 @@ function App() {
                     <RoomDetailModal
                         room={selectedRoom}
                         onClose={() => { setCurrentPage('roomList'); setSelectedRoom(null); }}
-                        onEdit={handleEditRoom}
-                        onDelete={handleDeleteRoom}
+                        onEdit={handleOpenBillEditForm} // Pass the new handler
+                        onDelete={handleDeleteRoom} // Pass the delete handler
                     />
                 )}
                 {currentPage === 'serviceSettings' && serviceSettings && (
@@ -763,22 +944,16 @@ function App() {
                         db={db}
                         userId={userId}
                         appId={appId}
-                        setModalMessage={setModalMessage}
-                        setModalTitle={setModalTitle}
-                        setShowCancelModal={setShowCancelModal}
-                        setModalAction={setModalAction}
+                        setModalState={setModalState}
                     />
                 )}
                 {currentPage === 'billHistory' && (
                     <BillHistory
                         bills={bills}
-                        rooms={rooms} // Cần rooms để hiển thị tên phòng
-                        onOpenPaymentModal={handleOpenPaymentModal} // Truyền hàm mở modal thanh toán
-                        onOpenBillDetailModal={handleOpenBillDetailModal} // Truyền hàm mở modal chi tiết hóa đơn
-                        setModalMessage={setModalMessage}
-                        setModalTitle={setModalTitle}
-                        setShowCancelModal={setShowCancelModal}
-                        setModalAction={setModalAction}
+                        rooms={rooms}
+                        onOpenPaymentModal={handleOpenPaymentModal}
+                        onOpenBillDetailModal={handleOpenBillDetailModal}
+                        setModalState={setModalState}
                     />
                 )}
                 {currentPage === 'expenseManagement' && (
@@ -786,10 +961,7 @@ function App() {
                         expenses={expenses}
                         onAddExpense={handleAddExpense}
                         onDeleteExpense={handleDeleteExpense}
-                        setModalMessage={setModalMessage}
-                        setModalTitle={setModalTitle}
-                        setShowCancelModal={setShowCancelModal}
-                        setModalAction={setModalAction}
+                        setModalState={setModalState}
                     />
                 )}
                 {currentPage === 'financialOverview' && (
@@ -854,36 +1026,36 @@ const RoomList = ({ rooms, onViewRoom, onEditRoom, onDeleteRoom }) => {
 // Component Form thêm/chỉnh sửa phòng
 const RoomForm = ({ room, onSave, onCancel }) => {
     const [formData, setFormData] = useState({
-        id: '', // Thêm id vào formData để xử lý cập nhật
+        id: '',
         roomNumber: '',
         tenantName: '',
-        idCard: '', // New field for CMND/CCCD
-        address: '', // New field for Address
-        hometown: '', // New field for Hometown
+        idCard: '',
+        address: '',
+        hometown: '',
         phoneNumber: '',
         rentAmount: '',
         deposit: '',
-        status: 'Vacant', // Default status
+        status: 'Vacant',
         startDate: '',
-        // endDate: '', // Removed as per request
-        previousElectricityMeter: '', // Chỉ số điện cũ của kỳ hiện tại
-        currentElectricityMeter: '',  // Chỉ số điện mới của kỳ hiện tại
-        previousWaterMeter: '',       // Chỉ số nước cũ của kỳ hiện tại
-        currentWaterMeter: '',        // Chỉ số nước mới của kỳ hiện tại
-        debtAmount: 0,                // Số tiền nợ
-        debtDescription: '',          // Mô tả nợ
-        dueDate: '',                  // Ngày đến hạn trả tiền (day of month)
-        lastPaymentDate: '',          // Ngày thanh toán gần nhất
-        condition: 'Tốt',             // Tình trạng phòng
-        repairNotes: '',              // Ghi chú sửa chữa
-        meterHistory: [],             // Lịch sử chỉ số điện nước
+        previousElectricityMeter: '',
+        currentElectricityMeter: '',
+        previousWaterMeter: '',
+        currentWaterMeter: '',
+        debtAmount: 0,
+        debtDescription: '',
+        dueDate: '',
+        lastPaymentDate: '',
+        condition: 'Tốt',
+        repairNotes: '',
+        meterHistory: [],
         notes: ''
     });
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (room) {
             setFormData({
-                id: room.id || '', // Đảm bảo id luôn được thiết lập
+                id: room.id || '',
                 roomNumber: room.roomNumber || '',
                 tenantName: room.tenantName || '',
                 idCard: room.idCard || '',
@@ -894,18 +1066,17 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                 deposit: room.deposit || '',
                 status: room.status || 'Vacant',
                 startDate: room.startDate || '',
-                // endDate: room.endDate || '', // Removed
                 previousElectricityMeter: room.previousElectricityMeter || '',
                 currentElectricityMeter: room.currentElectricityMeter || '',
                 previousWaterMeter: room.previousWaterMeter || '',
                 currentWaterMeter: room.currentWaterMeter || '',
                 debtAmount: room.debtAmount || 0,
                 debtDescription: room.debtDescription || '',
-                dueDate: room.dueDate || '', // dueDate is now just a day (number)
+                dueDate: room.dueDate || '',
                 lastPaymentDate: room.lastPaymentDate || '',
                 condition: room.condition || 'Tốt',
                 repairNotes: room.repairNotes || '',
-                meterHistory: room.meterHistory || [], // Load lịch sử chỉ số
+                meterHistory: room.meterHistory || [],
                 notes: room.notes || ''
             });
         }
@@ -916,9 +1087,11 @@ const RoomForm = ({ room, onSave, onCancel }) => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        onSave(formData); // Truyền formData trực tiếp, id đã có sẵn nếu là phòng hiện có
+        setIsSaving(true);
+        await onSave(formData);
+        setIsSaving(false);
     };
 
     return (
@@ -935,6 +1108,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                         onChange={handleChange}
                         required
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isSaving}
                     />
                 </div>
                 <div>
@@ -946,6 +1120,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                         onChange={handleChange}
                         required
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isSaving}
                     >
                         <option value="Vacant">Trống</option>
                         <option value="Occupied">Đang thuê</option>
@@ -963,6 +1138,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.tenantName}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -974,6 +1150,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.idCard}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -985,6 +1162,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.address}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -996,6 +1174,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.hometown}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1007,6 +1186,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.phoneNumber}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1018,6 +1198,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.rentAmount}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1029,6 +1210,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.deposit}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1040,13 +1222,13 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.startDate}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
-                        {/* Removed endDate as per request */}
                         <div>
                             <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">Ngày đến hạn trả tiền (ngày trong tháng)</label>
                             <input
-                                type="number" // Changed to number for day of month
+                                type="number"
                                 id="dueDate"
                                 name="dueDate"
                                 value={formData.dueDate}
@@ -1054,6 +1236,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 min="1"
                                 max="31"
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1065,6 +1248,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.lastPaymentDate}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1076,6 +1260,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.previousElectricityMeter}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1087,6 +1272,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.currentElectricityMeter}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1098,6 +1284,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.previousWaterMeter}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1109,6 +1296,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.currentWaterMeter}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1120,6 +1308,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 value={formData.debtAmount}
                                 onChange={handleChange}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             />
                         </div>
                         <div>
@@ -1131,6 +1320,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 onChange={handleChange}
                                 rows="2"
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isSaving}
                             ></textarea>
                         </div>
                     </>
@@ -1143,6 +1333,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                         value={formData.condition}
                         onChange={handleChange}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isSaving}
                     >
                         <option value="Tốt">Tốt</option>
                         <option value="Cần sửa chữa">Cần sửa chữa</option>
@@ -1159,6 +1350,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                             onChange={handleChange}
                             rows="2"
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                            disabled={isSaving}
                         ></textarea>
                     </div>
                 )}
@@ -1171,6 +1363,7 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                         onChange={handleChange}
                         rows="3"
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isSaving}
                     ></textarea>
                 </div>
                 <div className="flex justify-end space-x-3 mt-6">
@@ -1178,14 +1371,16 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                         type="button"
                         onClick={onCancel}
                         className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition duration-200 text-sm sm:text-base"
+                        disabled={isSaving}
                     >
                         Hủy
                     </button>
                     <button
                         type="submit"
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 text-sm sm:text-base"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isSaving}
                     >
-                        {room ? 'Cập nhật' : 'Thêm Phòng'}
+                        {isSaving ? 'Đang lưu...' : (room ? 'Cập nhật' : 'Thêm Phòng')}
                     </button>
                 </div>
             </form>
@@ -1219,7 +1414,6 @@ const RoomDetailModal = ({ room, onClose, onEdit, onDelete }) => {
                     {room.rentAmount && <p><strong>Giá thuê:</strong> {parseInt(room.rentAmount).toLocaleString('vi-VN')} VNĐ</p>}
                     {room.deposit && <p><strong>Tiền đặt cọc:</strong> {parseInt(room.deposit).toLocaleString('vi-VN')} VNĐ</p>}
                     {room.startDate && <p><strong>Ngày bắt đầu:</strong> {formatDisplayDate(room.startDate)}</p>}
-                    {/* Removed endDate display */}
                     {room.dueDate && <p><strong>Ngày đến hạn:</strong> ngày {room.dueDate} hàng tháng</p>}
                     {room.lastPaymentDate && <p><strong>Ngày thanh toán gần nhất:</strong> {formatDisplayDate(room.lastPaymentDate)}</p>}
                     <p><strong>Chỉ số điện cũ (kỳ hiện tại):</strong> {room.previousElectricityMeter || 'N/A'}</p>
@@ -1247,13 +1441,13 @@ const RoomDetailModal = ({ room, onClose, onEdit, onDelete }) => {
                 </div>
                 <div className="flex justify-end space-x-2 sm:space-x-3">
                     <button
-                        onClick={() => { onEdit(room); }}
+                        onClick={() => onEdit(bill)} // Call onEdit with the current bill
                         className="px-3 py-1 sm:px-4 sm:py-2 bg-yellow-500 text-white rounded-md text-sm sm:text-base hover:bg-yellow-600 transition duration-200"
                     >
                         Sửa
                     </button>
                     <button
-                        onClick={() => { onDelete(room); onClose(); }} // Đóng modal chi tiết sau khi xác nhận xóa
+                        onClick={() => { onDelete(bill); onClose(); }} // Call onDelete and then close modal
                         className="px-3 py-1 sm:px-4 sm:py-2 bg-red-500 text-white rounded-md text-sm sm:text-base hover:bg-red-600 transition duration-200"
                     >
                         Xóa
@@ -1273,6 +1467,7 @@ const RoomDetailModal = ({ room, onClose, onEdit, onDelete }) => {
 // Component Cài đặt Dịch vụ
 const ServiceSettingsForm = ({ settings, onSave }) => {
     const [formData, setFormData] = useState(settings);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         setFormData(settings);
@@ -1283,9 +1478,11 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
         setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        onSave(formData);
+        setIsSaving(true);
+        await onSave(formData);
+        setIsSaving(false);
     };
 
     return (
@@ -1302,6 +1499,7 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
                         onChange={handleChange}
                         required
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isSaving}
                     />
                 </div>
                 <div>
@@ -1314,6 +1512,7 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
                         onChange={handleChange}
                         required
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isSaving}
                     />
                 </div>
                 <div>
@@ -1326,6 +1525,7 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
                         onChange={handleChange}
                         required
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isSaving}
                     />
                 </div>
                 <div>
@@ -1338,14 +1538,16 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
                         onChange={handleChange}
                         required
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isSaving}
                     />
                 </div>
                 <div className="flex justify-end mt-4 sm:mt-6">
                     <button
                         type="submit"
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 text-sm sm:text-base"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isSaving}
                     >
-                        Lưu Cài đặt
+                        {isSaving ? 'Đang lưu...' : 'Lưu Cài đặt'}
                     </button>
                 </div>
             </form>
@@ -1354,16 +1556,18 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
 };
 
 // Component Tính Tiền Phòng
-const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMessage, setModalTitle, setShowCancelModal, setModalAction }) => {
+const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalState }) => {
     const [selectedRoomId, setSelectedRoomId] = useState('');
     const [billingMonth, setBillingMonth] = useState(new Date().getMonth() + 1);
     const [billingYear, setBillingYear] = useState(new Date().getFullYear());
     const [calculatedBill, setCalculatedBill] = useState(null);
     const [otherFeesDescription, setOtherFeesDescription] = useState('');
     const [otherFeesAmount, setOtherFeesAmount] = useState(0);
-    const [currentRoomData, setCurrentRoomData] = useState(null); // State để lưu thông tin phòng được chọn
+    const [currentRoomData, setCurrentRoomData] = useState(null);
     const [tempElectricityMeter, setTempElectricityMeter] = useState({ previous: '', current: '' });
     const [tempWaterMeter, setTempWaterMeter] = useState({ previous: '', current: '' });
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [isSavingBill, setIsSavingBill] = useState(false);
 
 
     useEffect(() => {
@@ -1389,36 +1593,43 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
 
 
     const handleGenerateBill = async () => {
+        setIsGenerating(true);
         if (!selectedRoomId || !serviceSettings || !currentRoomData) {
-            setModalTitle("Lỗi");
-            setModalMessage("Vui lòng chọn phòng và đảm bảo cài đặt dịch vụ đã được tải.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            setModalState({
+                title: "Lỗi",
+                message: "Vui lòng chọn phòng và đảm bảo cài đặt dịch vụ đã được tải.",
+                showCancel: false,
+                action: () => setModalState({ showModal: false }),
+                showModal: true
+            });
+            setIsGenerating(false);
             return;
         }
 
-        // Use temp meter readings for calculation
         const electricityUsage = (parseFloat(tempElectricityMeter.current) || 0) - (parseFloat(tempElectricityMeter.previous) || 0);
         const electricityCost = electricityUsage > 0 ? electricityUsage * serviceSettings.electricityPrice : 0;
 
         const waterUsage = (parseFloat(tempWaterMeter.current) || 0) - (parseFloat(tempWaterMeter.previous) || 0);
         const waterCost = waterUsage > 0 ? waterUsage * serviceSettings.waterPrice : 0;
 
+        const rentAmount = parseInt(currentRoomData.rentAmount) || 0;
+        const internetFee = parseInt(serviceSettings.internetPrice) || 0;
+        const trashFee = parseInt(serviceSettings.trashPrice) || 0;
+        const otherFees = parseInt(otherFeesAmount) || 0;
+
         const currentMonthCharges =
-            (parseInt(currentRoomData.rentAmount) || 0) +
+            rentAmount +
             electricityCost +
             waterCost +
-            (parseInt(serviceSettings.internetPrice) || 0) +
-            (parseInt(serviceSettings.trashPrice) || 0) +
-            (parseInt(otherFeesAmount) || 0);
+            internetFee +
+            trashFee +
+            otherFees;
 
-        // Fetch outstanding debt from the room's current state
         const outstandingPreviousDebt = parseInt(currentRoomData.debtAmount) || 0;
 
-        // Sửa lỗi: Đảm bảo các giá trị được cộng là số
         const totalAmount = currentMonthCharges + outstandingPreviousDebt;
 
-        const billDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const billDate = new Date().toISOString().split('T')[0];
         const invoiceCode = `${currentRoomData.roomNumber}-${formatInvoiceDate(billDate)}`;
 
         setCalculatedBill({
@@ -1427,7 +1638,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
             tenantName: currentRoomData.tenantName,
             billingMonth: billingMonth,
             billingYear: billingYear,
-            rentAmount: parseInt(currentRoomData.rentAmount || 0),
+            rentAmount: rentAmount,
             previousElectricityMeter: parseFloat(tempElectricityMeter.previous) || 0,
             currentElectricityMeter: parseFloat(tempElectricityMeter.current) || 0,
             electricityUsage: electricityUsage,
@@ -1436,35 +1647,45 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
             currentWaterMeter: parseFloat(tempWaterMeter.current) || 0,
             waterUsage: waterUsage,
             waterCost: waterCost,
-            internetFee: parseInt(serviceSettings.internetPrice || 0),
-            trashFee: parseInt(serviceSettings.trashPrice || 0),
+            internetFee: internetFee,
+            trashFee: trashFee,
             otherFeesDescription: otherFeesDescription,
-            otherFeesAmount: parseInt(otherFeesAmount || 0),
-            currentMonthCharges: currentMonthCharges, // New field for current month's charges
-            outstandingPreviousDebt: outstandingPreviousDebt, // New field for previous debt
+            otherFeesAmount: otherFees,
+            currentMonthCharges: currentMonthCharges,
+            outstandingPreviousDebt: outstandingPreviousDebt,
             totalAmount: totalAmount,
-            paymentStatus: 'Unpaid', // Default to Unpaid
-            paidAmount: 0, // Default paid amount
-            remainingAmount: totalAmount, // Initially, remaining is total
-            billDate: billDate, // YYYY-MM-DD
-            invoiceCode: invoiceCode // New field for invoice code
+            paymentStatus: 'Unpaid',
+            paidAmount: 0,
+            remainingAmount: totalAmount,
+            billDate: billDate,
+            invoiceCode: invoiceCode
         });
+        setIsGenerating(false);
     };
 
     const handleSaveBill = async () => {
+        setIsSavingBill(true);
         if (!calculatedBill) {
-            setModalTitle("Lỗi");
-            setModalMessage("Chưa có hóa đơn để lưu.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            setModalState({
+                title: "Lỗi",
+                message: "Chưa có hóa đơn để lưu.",
+                showCancel: false,
+                action: () => setModalState({ showModal: false }),
+                showModal: true
+            });
+            setIsSavingBill(false);
             return;
         }
 
         if (!db || !userId) {
-            setModalTitle("Lỗi");
-            setModalMessage("Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            setModalState({
+                title: "Lỗi",
+                message: "Ứng dụng chưa sẵn sàng. Vui lòng thử lại sau.",
+                showCancel: false,
+                action: () => setModalState({ showModal: false }),
+                showModal: true
+            });
+            setIsSavingBill(false);
             return;
         }
 
@@ -1472,15 +1693,12 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
             const billsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/bills`);
             await addDoc(billsCollectionRef, calculatedBill);
 
-            // Cập nhật chỉ số điện nước cũ của phòng thành chỉ số mới sau khi tạo hóa đơn
             const roomRef = doc(collection(db, `artifacts/${appId}/users/${userId}/rooms`), calculatedBill.roomId);
 
-            // Cập nhật lịch sử chỉ số điện nước
             const roomSnap = await getDoc(roomRef);
             const existingRoomData = roomSnap.data();
             let updatedMeterHistory = existingRoomData.meterHistory || [];
 
-            // Thêm chỉ số của kỳ vừa tính vào lịch sử
             updatedMeterHistory.unshift({
                 month: `${calculatedBill.billingMonth}/${calculatedBill.billingYear}`,
                 electricityOld: calculatedBill.previousElectricityMeter,
@@ -1489,37 +1707,44 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                 waterNew: calculatedBill.currentWaterMeter,
             });
 
-            // Giữ lại tối đa 3 tháng gần nhất
             if (updatedMeterHistory.length > 3) {
                 updatedMeterHistory = updatedMeterHistory.slice(0, 3);
             }
 
             await updateDoc(roomRef, {
-                previousElectricityMeter: calculatedBill.currentElectricityMeter, // Chỉ số mới của kỳ này thành cũ của kỳ sau
-                currentElectricityMeter: 0, // Reset chỉ số mới
-                previousWaterMeter: calculatedBill.currentWaterMeter, // Chỉ số mới của kỳ này thành cũ của kỳ sau
-                currentWaterMeter: 0, // Reset chỉ số mới
-                debtAmount: calculatedBill.totalAmount, // Tổng nợ của phòng là tổng hóa đơn mới
-                debtDescription: calculatedBill.otherFeesDescription || '', // Mô tả nợ
-                meterHistory: updatedMeterHistory // Cập nhật lịch sử chỉ số
+                previousElectricityMeter: calculatedBill.currentElectricityMeter,
+                currentElectricityMeter: 0,
+                previousWaterMeter: calculatedBill.currentWaterMeter,
+                currentWaterMeter: 0,
+                debtAmount: calculatedBill.totalAmount,
+                debtDescription: calculatedBill.otherFeesDescription || '',
+                meterHistory: updatedMeterHistory
             });
 
-            setModalTitle("Thành công");
-            setModalMessage("Hóa đơn đã được lưu và chỉ số điện nước của phòng đã được cập nhật cho kỳ tiếp theo!");
-            setShowCancelModal(false);
-            setModalAction(() => () => {
-                setModalMessage('');
-                setCalculatedBill(null);
-                setOtherFeesDescription('');
-                setOtherFeesAmount(0);
-                setSelectedRoomId(''); // Reset selected room
+            setModalState({
+                title: "Thành công",
+                message: "Hóa đơn đã được lưu và chỉ số điện nước của phòng đã được cập nhật cho kỳ tiếp theo!",
+                showCancel: false,
+                action: () => {
+                    setModalState({ showModal: false });
+                    setCalculatedBill(null);
+                    setOtherFeesDescription('');
+                    setOtherFeesAmount(0);
+                    setSelectedRoomId('');
+                },
+                showModal: true
             });
         } catch (error) {
             console.error("Lỗi khi lưu hóa đơn:", error);
-            setModalTitle("Lỗi");
-            setModalMessage(`Không thể lưu hóa đơn: ${error.message}`);
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            setModalState({
+                title: "Lỗi",
+                message: `Không thể lưu hóa đơn: ${error.message}`,
+                showCancel: false,
+                action: () => setModalState({ showModal: false }),
+                showModal: true
+            });
+        } finally {
+            setIsSavingBill(false);
         }
     };
 
@@ -1534,6 +1759,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                         value={selectedRoomId}
                         onChange={(e) => setSelectedRoomId(e.target.value)}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isGenerating || isSavingBill}
                     >
                         <option value="">-- Chọn phòng --</option>
                         {rooms.map(room => (
@@ -1551,6 +1777,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                         min="1"
                         max="12"
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isGenerating || isSavingBill}
                     />
                 </div>
                 <div>
@@ -1562,6 +1789,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                         onChange={(e) => setBillingYear(parseInt(e.target.value))}
                         min="2000"
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isGenerating || isSavingBill}
                     />
                 </div>
             </div>
@@ -1586,6 +1814,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                                 value={tempElectricityMeter.previous}
                                 onChange={(e) => setTempElectricityMeter(prev => ({ ...prev, previous: e.target.value }))}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isGenerating || isSavingBill}
                             />
                         </div>
                         <div>
@@ -1596,6 +1825,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                                 value={tempElectricityMeter.current}
                                 onChange={(e) => setTempElectricityMeter(prev => ({ ...prev, current: e.target.value }))}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isGenerating || isSavingBill}
                             />
                         </div>
                         <div>
@@ -1606,6 +1836,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                                 value={tempWaterMeter.previous}
                                 onChange={(e) => setTempWaterMeter(prev => ({ ...prev, previous: e.target.value }))}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isGenerating || isSavingBill}
                             />
                         </div>
                         <div>
@@ -1616,6 +1847,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                                 value={tempWaterMeter.current}
                                 onChange={(e) => setTempWaterMeter(prev => ({ ...prev, current: e.target.value }))}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                                disabled={isGenerating || isSavingBill}
                             />
                         </div>
                     </div>
@@ -1643,6 +1875,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                         value={otherFeesDescription}
                         onChange={(e) => setOtherFeesDescription(e.target.value)}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isGenerating || isSavingBill}
                     />
                 </div>
                 <div>
@@ -1653,6 +1886,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                         value={otherFeesAmount}
                         onChange={(e) => setOtherFeesAmount(parseFloat(e.target.value) || 0)}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isGenerating || isSavingBill}
                     />
                 </div>
             </div>
@@ -1660,9 +1894,10 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
             <div className="flex justify-end mb-4 sm:mb-6">
                 <button
                     onClick={handleGenerateBill}
-                    className="px-5 py-2 sm:px-6 sm:py-2 bg-green-600 text-white rounded-md text-sm sm:text-base hover:bg-green-700 transition duration-200"
+                    className="px-5 py-2 sm:px-6 sm:py-2 bg-green-600 text-white rounded-md text-sm sm:text-base hover:bg-green-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isGenerating || isSavingBill}
                 >
-                    Tạo Hóa đơn
+                    {isGenerating ? 'Đang tạo...' : 'Tạo Hóa đơn'}
                 </button>
             </div>
 
@@ -1705,9 +1940,10 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
                     <div className="flex justify-end space-x-3 mt-4 sm:mt-6">
                         <button
                             onClick={handleSaveBill}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 text-sm sm:text-base"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={isSavingBill}
                         >
-                            Lưu Hóa đơn
+                            {isSavingBill ? 'Đang lưu...' : 'Lưu Hóa đơn'}
                         </button>
                     </div>
                 </div>
@@ -1717,24 +1953,26 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalMess
 };
 
 // Component Lịch sử Hóa đơn
-const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, setModalMessage, setModalTitle, setShowCancelModal, setModalAction }) => {
+const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, setModalState }) => {
     const [filterRoomId, setFilterRoomId] = useState('');
     const [filterMonth, setFilterMonth] = useState('');
     const [filterYear, setFilterYear] = useState('');
-    const [filterStatus, setFilterStatus] = useState(''); // New filter for payment status
+    const [filterStatus, setFilterStatus] = useState('');
 
-    const filteredBills = bills.filter(bill => {
-        const matchesRoom = filterRoomId ? bill.roomId === filterRoomId : true;
-        const matchesMonth = filterMonth ? bill.billingMonth === parseInt(filterMonth) : true;
-        const matchesYear = filterYear ? bill.billingYear === parseInt(filterYear) : true;
-        const matchesStatus = filterStatus ? bill.paymentStatus === filterStatus : true;
-        return matchesRoom && matchesMonth && matchesYear && matchesStatus;
-    });
+    const filteredBills = useMemo(() => {
+        return bills.filter(bill => {
+            const matchesRoom = filterRoomId ? bill.roomId === filterRoomId : true;
+            const matchesMonth = filterMonth ? bill.billingMonth === parseInt(filterMonth) : true;
+            const matchesYear = filterYear ? bill.billingYear === parseInt(filterYear) : true;
+            const matchesStatus = filterStatus ? bill.paymentStatus === filterStatus : true;
+            return matchesRoom && matchesMonth && matchesYear && matchesStatus;
+        });
+    }, [bills, filterRoomId, filterMonth, filterYear, filterStatus]);
 
-    const getRoomNumber = (roomId) => {
+    const getRoomNumber = useCallback((roomId) => {
         const room = rooms.find(r => r.id === roomId);
         return room ? room.roomNumber : 'N/A';
-    };
+    }, [rooms]);
 
     const getPaymentStatusText = (status) => {
         switch (status) {
@@ -1889,21 +2127,26 @@ const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, 
 };
 
 // Component Quản lý Chi phí
-const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalMessage, setModalTitle, setShowCancelModal, setModalAction }) => {
+const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalState }) => {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [isAdding, setIsAdding] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!description || !amount) {
-            setModalTitle("Lỗi");
-            setModalMessage("Vui lòng nhập mô tả và số tiền chi phí.");
-            setShowCancelModal(false);
-            setModalAction(() => () => setModalMessage(''));
+            setModalState({
+                title: "Lỗi",
+                message: "Vui lòng nhập mô tả và số tiền chi phí.",
+                showCancel: false,
+                action: () => setModalState({ showModal: false }),
+                showModal: true
+            });
             return;
         }
-        onAddExpense({
+        setIsAdding(true);
+        await onAddExpense({
             description,
             amount: parseFloat(amount),
             date
@@ -1911,6 +2154,7 @@ const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalMe
         setDescription('');
         setAmount('');
         setDate(new Date().toISOString().split('T')[0]);
+        setIsAdding(false);
     };
 
     return (
@@ -1927,6 +2171,7 @@ const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalMe
                         onChange={(e) => setDescription(e.target.value)}
                         required
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isAdding}
                     />
                 </div>
                 <div>
@@ -1940,6 +2185,7 @@ const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalMe
                         min="0"
                         step="1000"
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isAdding}
                     />
                 </div>
                 <div>
@@ -1951,14 +2197,16 @@ const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalMe
                         onChange={(e) => setDate(e.target.value)}
                         required
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isAdding}
                     />
                 </div>
                 <div className="md:col-span-3 flex justify-end">
                     <button
                         type="submit"
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 text-sm sm:text-base"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isAdding}
                     >
-                        Thêm Chi phí
+                        {isAdding ? 'Đang thêm...' : 'Thêm Chi phí'}
                     </button>
                 </div>
             </form>
@@ -2006,21 +2254,25 @@ const FinancialOverview = ({ bills, expenses }) => {
     const [filterMonth, setFilterMonth] = useState('');
     const [filterYear, setFilterYear] = useState('');
 
-    const filteredBills = bills.filter(bill => {
-        const matchesMonth = filterMonth ? bill.billingMonth === parseInt(filterMonth) : true;
-        const matchesYear = filterYear ? bill.billingYear === parseInt(filterYear) : true;
-        return matchesMonth && matchesYear;
-    });
+    const filteredBills = useMemo(() => {
+        return bills.filter(bill => {
+            const matchesMonth = filterMonth ? bill.billingMonth === parseInt(filterMonth) : true;
+            const matchesYear = filterYear ? bill.billingYear === parseInt(filterYear) : true;
+            return matchesMonth && matchesYear;
+        });
+    }, [bills, filterMonth, filterYear]);
 
-    const filteredExpenses = expenses.filter(expense => {
-        const expenseDate = new Date(expense.date);
-        const matchesMonth = filterMonth ? (expenseDate.getMonth() + 1) === parseInt(filterMonth) : true;
-        const matchesYear = filterYear ? expenseDate.getFullYear() === parseInt(filterYear) : true;
-        return matchesMonth && matchesYear;
-    });
+    const filteredExpenses = useMemo(() => {
+        return expenses.filter(expense => {
+            const expenseDate = new Date(expense.date);
+            const matchesMonth = filterMonth ? (expenseDate.getMonth() + 1) === parseInt(filterMonth) : true;
+            const matchesYear = filterYear ? expenseDate.getFullYear() === parseInt(filterYear) : true;
+            return matchesMonth && matchesYear;
+        });
+    }, [expenses, filterMonth, filterYear]);
 
-    const totalIncome = filteredBills.reduce((sum, bill) => sum + (bill.paidAmount || 0), 0);
-    const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+    const totalIncome = useMemo(() => filteredBills.reduce((sum, bill) => sum + (bill.paidAmount || 0), 0), [filteredBills]);
+    const totalExpenses = useMemo(() => filteredExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0), [filteredExpenses]);
     const netBalance = totalIncome - totalExpenses;
 
     return (
