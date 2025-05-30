@@ -92,8 +92,8 @@ const FirebaseProvider = ({ children }) => {
     // Wait for Firebase to be initialized and auth state to be ready
     if (loadingFirebase || !isAuthReady) {
         return (
-            <div style={styles.loadingContainer}>
-                <div style={styles.loadingText}>Đang tải ứng dụng...</div>
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <div className="text-lg font-semibold text-gray-700">Đang tải ứng dụng...</div>
             </div>
         );
     }
@@ -110,22 +110,22 @@ const CustomModal = ({ title, message, onConfirm, onCancel, showCancel = true, s
     if (!showModal) return null; // Không hiển thị modal nếu showModal là false
 
     return (
-        <div style={styles.modalOverlay}>
-            <div style={styles.modalContent}>
-                <h3 style={styles.modalTitle}>{title}</h3>
-                <div style={styles.modalMessage}>{message}</div>
-                <div style={styles.modalActions}>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-auto">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">{title}</h3>
+                <div className="text-gray-700 mb-6">{message}</div>
+                <div className="flex justify-end space-x-3">
                     {showCancel && (
                         <button
                             onClick={onCancel}
-                            style={{...styles.button, ...styles.buttonSecondary}}
+                            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition duration-200"
                         >
                             Hủy
                         </button>
                     )}
                     <button
                         onClick={onConfirm}
-                        style={{...styles.button, ...styles.buttonPrimary}}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
                     >
                         Xác nhận
                     </button>
@@ -161,15 +161,15 @@ const PaymentModal = ({ bill, onClose, onProcessPayment, setModalState }) => {
             title={`Thanh toán Hóa đơn Phòng ${bill.roomNumber}`}
             message={
                 <div>
-                    <p style={styles.modalText}>Tổng tiền hóa đơn: <span style={styles.modalTextBold}>{bill.totalAmount.toLocaleString('vi-VN')} VNĐ</span></p>
-                    <p style={styles.modalText}>Số tiền còn lại: <span style={{...styles.modalTextBold, color: 'red'}}>{bill.remainingAmount.toLocaleString('vi-VN')} VNĐ</span></p>
-                    <label htmlFor="paymentAmount" style={styles.formLabel}>Số tiền thanh toán (VNĐ)</label>
+                    <p className="mb-2">Tổng tiền hóa đơn: <span className="font-bold">{bill.totalAmount.toLocaleString('vi-VN')} VNĐ</span></p>
+                    <p className="mb-4">Số tiền còn lại: <span className="font-bold text-red-600">{bill.remainingAmount.toLocaleString('vi-VN')} VNĐ</span></p>
+                    <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700">Số tiền thanh toán (VNĐ)</label>
                     <input
                         type="number"
                         id="paymentAmount"
                         value={paymentAmount}
                         onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         min="0"
                         step="1000"
                         disabled={isProcessing}
@@ -199,39 +199,39 @@ const BillDetailModal = ({ bill, onClose, onEdit, onDelete }) => {
 
     const getPaymentStatusColor = (status) => {
         switch (status) {
-            case 'Paid': return 'green';
-            case 'Unpaid': return 'red';
-            case 'Partially Paid': return 'orange';
-            default: return 'black';
+            case 'Paid': return 'text-green-600';
+            case 'Unpaid': return 'text-red-600';
+            case 'Partially Paid': return 'text-yellow-600';
+            default: return 'text-gray-800';
         }
     };
 
     return (
-        <div style={styles.modalOverlay}>
-            <div style={styles.modalContentLarge}>
-                <div style={styles.modalHeader}>
-                    <h3 style={styles.modalTitle}>Chi tiết Hóa đơn {bill.invoiceCode}</h3>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-2xl font-bold text-gray-800">Chi tiết Hóa đơn {bill.invoiceCode}</h3>
                     <button
                         onClick={onClose}
-                        style={styles.modalCloseButton}
+                        className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
                     >
                         &times;
                     </button>
                 </div>
-                <div style={styles.modalBody}>
+                <div className="space-y-3 text-gray-700 mb-6">
                     <p><strong>Phòng:</strong> {bill.roomNumber}</p>
                     <p><strong>Người thuê:</strong> {bill.tenantName}</p>
                     <p><strong>Kỳ:</strong> Tháng {bill.billingMonth}/{bill.billingYear}</p>
                     <p><strong>Tiền phòng tháng này:</strong> {bill.rentAmount.toLocaleString('vi-VN')} VNĐ</p>
                     <p><strong>Điện:</strong></p>
-                    <ul style={styles.list}>
+                    <ul className="list-disc list-inside ml-4">
                         <li>Chỉ số cũ: {bill.previousElectricityMeter}</li>
                         <li>Chỉ số mới: {bill.currentElectricityMeter}</li>
                         <li>Sử dụng: {bill.electricityUsage} kWh</li>
                         <li>Thành tiền: {bill.electricityCost.toLocaleString('vi-VN')} VNĐ</li>
                     </ul>
                     <p><strong>Nước:</strong></p>
-                    <ul style={styles.list}>
+                    <ul className="list-disc list-inside ml-4">
                         <li>Chỉ số cũ: {bill.previousWaterMeter}</li>
                         <li>Chỉ số mới: {bill.currentWaterMeter}</li>
                         <li>Sử dụng: {bill.waterUsage} m³</li>
@@ -243,30 +243,30 @@ const BillDetailModal = ({ bill, onClose, onEdit, onDelete }) => {
                         <p><strong>Phí khác ({bill.otherFeesDescription}):</strong> {bill.otherFeesAmount.toLocaleString('vi-VN')} VNĐ</p>
                     )}
                     <p><strong>Các khoản tháng này:</strong> {bill.currentMonthCharges.toLocaleString('vi-VN')} VNĐ</p>
-                    <p style={{color: 'red', fontWeight: 'bold'}}><strong>Nợ cũ còn lại:</strong> {bill.outstandingPreviousDebt.toLocaleString('vi-VN')} VNĐ</p>
-                    <p style={{color: 'darkblue', fontWeight: 'bold', fontSize: '1.2em'}}>Tổng cộng phải trả: {bill.totalAmount.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className="text-red-600 font-semibold"><strong>Nợ cũ còn lại:</strong> {bill.outstandingPreviousDebt.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className="text-blue-800 font-bold text-xl">Tổng cộng phải trả: {bill.totalAmount.toLocaleString('vi-VN')} VNĐ</p>
                     <p><strong>Đã thanh toán:</strong> {(bill.paidAmount || 0).toLocaleString('vi-VN')} VNĐ</p>
-                    <p><strong>Còn lại:</strong> <span style={{fontWeight: 'bold', color: getPaymentStatusColor(bill.paymentStatus)}}>{(bill.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</span></p>
-                    <p><strong>Trạng thái thanh toán:</strong> <span style={{fontWeight: 'bold', color: getPaymentStatusColor(bill.paymentStatus)}}>{getPaymentStatusText(bill.paymentStatus)}</span></p>
+                    <p><strong>Còn lại:</strong> <span className={`font-bold ${getPaymentStatusColor(bill.paymentStatus)}`}>{(bill.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</span></p>
+                    <p><strong>Trạng thái thanh toán:</strong> <span className={`font-semibold ${getPaymentStatusColor(bill.paymentStatus)}`}>{getPaymentStatusText(bill.paymentStatus)}</span></p>
                     <p><strong>Ngày tạo hóa đơn:</strong> {formatDisplayDate(bill.billDate)}</p>
                     {bill.paymentDate && <p><strong>Ngày thanh toán:</strong> {formatDisplayDate(bill.paymentDate)}</p>}
                 </div>
-                <div style={styles.modalActions}>
+                <div className="flex justify-end space-x-2 sm:space-x-3">
                     <button
-                        onClick={() => onEdit(bill)}
-                        style={{...styles.button, backgroundColor: 'orange'}}
+                        onClick={() => onEdit(bill)} // Call onEdit with the current bill
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-yellow-500 text-white rounded-md text-sm sm:text-base hover:bg-yellow-600 transition duration-200"
                     >
                         Sửa
                     </button>
                     <button
-                        onClick={() => { onDelete(bill); onClose(); }}
-                        style={{...styles.button, backgroundColor: 'red'}}
+                        onClick={() => { onDelete(bill); onClose(); }} // Call onDelete and then close modal
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-red-500 text-white rounded-md text-sm sm:text-base hover:bg-red-600 transition duration-200"
                     >
                         Xóa
                     </button>
                     <button
                         onClick={onClose}
-                        style={{...styles.button, ...styles.buttonSecondary}}
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-gray-200 text-gray-800 rounded-md text-sm sm:text-base hover:bg-gray-300 transition duration-200"
                     >
                         Đóng
                     </button>
@@ -285,19 +285,23 @@ const LoginScreen = ({ auth, setModalState }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsProcessing(true);
-        // Display "Đang xử lý..." modal
         setModalState({
             title: "Thông báo",
             message: "Đang xử lý...",
             showCancel: false,
-            onConfirm: () => setModalState({ showModal: false }), // Allow closing if stuck
+            action: null, // Disable action button
             showModal: true
         });
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            // On successful login, onAuthStateChanged in FirebaseProvider will handle the transition
-            // No need to set modal state for success here, as it will transition directly.
+            setModalState({
+                title: "Thành công",
+                message: "Đăng nhập thành công!",
+                showCancel: false,
+                action: () => setModalState({ showModal: false }),
+                showModal: true
+            });
         } catch (error) {
             console.error("Lỗi xác thực:", error);
             let errorMessage = "Đăng nhập thất bại. Vui lòng kiểm tra lại Email và Mật khẩu.";
@@ -312,7 +316,7 @@ const LoginScreen = ({ auth, setModalState }) => {
                 title: "Lỗi Đăng nhập",
                 message: errorMessage,
                 showCancel: false,
-                onConfirm: () => setModalState({ showModal: false }), // Close modal on error
+                action: () => setModalState({ showModal: false }), // Close modal
                 showModal: true
             });
         } finally {
@@ -321,212 +325,43 @@ const LoginScreen = ({ auth, setModalState }) => {
     };
 
     return (
-        <div style={styles.loadingContainer}>
-            <div style={styles.modalContent}>
-                <h2 style={styles.loginTitle}>
+        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
+                <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
                     Đăng nhập Quản Lý Phòng Trọ
                 </h2>
-                <form onSubmit={handleSubmit} style={styles.loginForm}>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="email" style={styles.formLabel}>Email</label>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
                         <input
                             type="email"
                             id="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            style={styles.formInput}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             disabled={isProcessing}
                         />
                     </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="password" style={styles.formLabel}>Mật khẩu</label>
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">Mật khẩu</label>
                         <input
                             type="password"
                             id="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            style={styles.formInput}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             disabled={isProcessing}
                         />
                     </div>
                     <button
                         type="submit"
-                        style={{...styles.button, ...styles.buttonPrimary, width: '100%'}}
+                        className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={isProcessing}
                     >
                         {isProcessing ? 'Đang đăng nhập...' : 'Đăng nhập'}
                     </button>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-// Component để chỉnh sửa hóa đơn
-const BillEditForm = ({ bill, onSave, onCancel, serviceSettings }) => {
-    const [formData, setFormData] = useState({ ...bill });
-    const [isSaving, setIsSaving] = useState(false);
-
-    useEffect(() => {
-        // Recalculate derived fields when relevant inputs change
-        const electricityUsage = (parseFloat(formData.currentElectricityMeter) || 0) - (parseFloat(formData.previousElectricityMeter) || 0);
-        const electricityCost = electricityUsage > 0 ? electricityUsage * (serviceSettings?.electricityPrice || 0) : 0;
-
-        const waterUsage = (parseFloat(formData.currentWaterMeter) || 0) - (parseFloat(formData.previousWaterMeter) || 0);
-        const waterCost = waterUsage > 0 ? waterUsage * (serviceSettings?.waterPrice || 0) : 0;
-
-        const rentAmount = parseInt(formData.rentAmount) || 0;
-        const internetFee = parseInt(serviceSettings?.internetPrice || 0);
-        const trashFee = parseInt(serviceSettings?.trashPrice || 0);
-        const otherFees = parseInt(formData.otherFeesAmount) || 0;
-        const outstandingPreviousDebt = parseInt(formData.outstandingPreviousDebt) || 0;
-
-
-        const currentMonthCharges =
-            rentAmount +
-            electricityCost +
-            waterCost +
-            internetFee +
-            trashFee +
-            otherFees;
-
-        const totalAmount = currentMonthCharges + outstandingPreviousDebt;
-
-
-        setFormData(prev => ({
-            ...prev,
-            electricityUsage: electricityUsage,
-            electricityCost: electricityCost,
-            waterUsage: waterUsage,
-            waterCost: waterCost,
-            currentMonthCharges: currentMonthCharges,
-            totalAmount: totalAmount,
-            // remainingAmount and paymentStatus will be calculated in handleSaveEditedBill
-        }));
-    }, [formData.previousElectricityMeter, formData.currentElectricityMeter,
-        formData.previousWaterMeter, formData.currentWaterMeter,
-        formData.rentAmount, formData.otherFeesAmount, formData.outstandingPreviousDebt, serviceSettings]);
-
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSaving(true);
-        await onSave(formData);
-        setIsSaving(false);
-    };
-
-    return (
-        <div style={styles.modalOverlay}>
-            <div style={styles.modalContentLarge}>
-                <div style={styles.modalHeader}>
-                    <h3 style={styles.modalTitle}>Chỉnh sửa Hóa đơn {formData.invoiceCode}</h3>
-                    <button onClick={onCancel} style={styles.modalCloseButton}>&times;</button>
-                </div>
-                <form onSubmit={handleSubmit} style={styles.formGrid}>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Phòng:</label>
-                        <input type="text" value={formData.roomNumber} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Người thuê:</label>
-                        <input type="text" value={formData.tenantName} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Kỳ:</label>
-                        <input type="text" value={`Tháng ${formData.billingMonth}/${formData.billingYear}`} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="rentAmount" style={styles.formLabel}>Tiền phòng tháng này (VNĐ):</label>
-                        <input type="number" id="rentAmount" name="rentAmount" value={formData.rentAmount} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="previousElectricityMeter" style={styles.formLabel}>Chỉ số điện cũ:</label>
-                        <input type="number" id="previousElectricityMeter" name="previousElectricityMeter" value={formData.previousElectricityMeter} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="currentElectricityMeter" style={styles.formLabel}>Chỉ số điện mới:</label>
-                        <input type="number" id="currentElectricityMeter" name="currentElectricityMeter" value={formData.currentElectricityMeter} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Sử dụng điện (kWh):</label>
-                        <input type="text" value={formData.electricityUsage} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Thành tiền điện (VNĐ):</label>
-                        <input type="text" value={formData.electricityCost.toLocaleString('vi-VN')} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="previousWaterMeter" style={styles.formLabel}>Chỉ số nước cũ:</label>
-                        <input type="number" id="previousWaterMeter" name="previousWaterMeter" value={formData.previousWaterMeter} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="currentWaterMeter" style={styles.formLabel}>Chỉ số nước mới:</label>
-                        <input type="number" id="currentWaterMeter" name="currentWaterMeter" value={formData.currentWaterMeter} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Sử dụng nước (m³):</label>
-                        <input type="text" value={formData.waterUsage} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Thành tiền nước (VNĐ):</label>
-                        <input type="text" value={formData.waterCost.toLocaleString('vi-VN')} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Internet (VNĐ):</label>
-                        <input type="text" value={formData.internetFee.toLocaleString('vi-VN')} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Rác (VNĐ):</label>
-                        <input type="text" value={formData.trashFee.toLocaleString('vi-VN')} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="otherFeesDescription" style={styles.formLabel}>Mô tả phí khác:</label>
-                        <input type="text" id="otherFeesDescription" name="otherFeesDescription" value={formData.otherFeesDescription} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="otherFeesAmount" style={styles.formLabel}>Số tiền phí khác (VNĐ):</label>
-                        <input type="number" id="otherFeesAmount" name="otherFeesAmount" value={formData.otherFeesAmount} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Nợ cũ còn lại (VNĐ):</label>
-                        <input type="text" value={formData.outstandingPreviousDebt.toLocaleString('vi-VN')} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Tổng cộng phải trả (VNĐ):</label>
-                        <input type="text" value={formData.totalAmount.toLocaleString('vi-VN')} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="paidAmount" style={styles.formLabel}>Đã thanh toán (VNĐ):</label>
-                        <input type="number" id="paidAmount" name="paidAmount" value={formData.paidAmount} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.formLabel}>Còn lại (VNĐ):</label>
-                        <input type="text" value={(formData.totalAmount - formData.paidAmount).toLocaleString('vi-VN')} style={styles.formInput} disabled />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="billDate" style={styles.formLabel}>Ngày tạo hóa đơn:</label>
-                        <input type="date" id="billDate" name="billDate" value={formData.billDate} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label htmlFor="paymentDate" style={styles.formLabel}>Ngày thanh toán:</label>
-                        <input type="date" id="paymentDate" name="paymentDate" value={formData.paymentDate} onChange={handleChange} style={styles.formInput} disabled={isSaving} />
-                    </div>
-
-                    <div style={styles.formActions}>
-                        <button type="button" onClick={onCancel} style={{...styles.button, ...styles.buttonSecondary}} disabled={isSaving}>
-                            Hủy
-                        </button>
-                        <button type="submit" style={{...styles.button, ...styles.buttonPrimary}} disabled={isSaving}>
-                            {isSaving ? 'Đang lưu...' : 'Lưu Hóa đơn'}
-                        </button>
-                    </div>
                 </form>
             </div>
         </div>
@@ -829,7 +664,7 @@ function App() {
             await addDoc(expensesCollectionRef, expenseData);
             showInfoModal("Thành công", "Chi phí đã được thêm!");
         } catch (error) {
-                console.error("Lỗi khi thêm chi phí:", error);
+            console.error("Lỗi khi thêm chi phí:", error);
             showInfoModal("Lỗi", `Không thể thêm chi phí: ${error.message}`);
         }
     }, [db, userId, appId, showInfoModal]);
@@ -953,8 +788,8 @@ function App() {
 
     if (loadingFirebase || !isAuthReady) { // Wait for Firebase to be initialized and auth state to be ready
         return (
-            <div style={styles.loadingContainer}>
-                <div style={styles.loadingText}>Đang tải ứng dụng...</div>
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <div className="text-lg font-semibold text-gray-700">Đang tải ứng dụng...</div>
             </div>
         );
     }
@@ -969,7 +804,7 @@ function App() {
     }
 
     return (
-        <div style={styles.appContainer}>
+        <div className="min-h-screen bg-gray-100 flex flex-col font-inter">
             <CustomModal
                 showModal={modalState.showModal}
                 title={modalState.title}
@@ -1004,16 +839,14 @@ function App() {
                 />
             )}
 
-            <header style={styles.header}>
-                <div style={styles.container}>
-                    <h1 style={styles.headerTitle}>QUẢN LÝ PHÒNG TRỌ - ÔNG BẢY TUẤN</h1>
-                    <div style={{display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
-                        <span style={styles.userIdText}>User ID: <span style={{fontWeight: 'bold'}}>{userId}</span></span>
+            <header className="bg-blue-600 text-white p-4 shadow-md">
+                <div className="container mx-auto flex justify-between items-center">
+                    <h1 className="text-xl sm:text-2xl font-bold">QUẢN LÝ PHÒNG TRỌ - ÔNG BẢY TUẤN</h1>
+                    <div className="text-xs sm:text-sm flex items-center space-x-2">
+                        <span>User ID: <span className="font-mono text-blue-200 break-all">{userId}</span></span>
                         <button
                             onClick={() => signOut(auth)}
-                            style={styles.logoutButton}
-                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = styles.logoutButtonHover.backgroundColor}
-                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = styles.logoutButton.backgroundColor}
+                            className="px-2 py-1 bg-blue-700 text-white rounded-md text-xs hover:bg-blue-800 transition duration-200"
                         >
                             Đăng xuất
                         </button>
@@ -1021,68 +854,54 @@ function App() {
                 </div>
             </header>
 
-            <nav style={styles.nav}>
-                <div style={styles.navContainer}>
+            <nav className="bg-blue-500 p-3 shadow-sm">
+                <div className="container mx-auto flex space-x-2 sm:space-x-4 overflow-x-auto pb-1">
                     <button
                         onClick={() => { setCurrentPage('roomList'); setSelectedRoom(null); }}
-                        style={{...styles.navButton, ...(currentPage === 'roomList' ? styles.navButtonActive : {})}}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'roomList' ? styles.navButtonActive.backgroundColor : styles.navButtonHover.backgroundColor)}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'roomList' ? styles.navButtonActive.backgroundColor : styles.navButton.backgroundColor)}
+                        className={`px-3 py-2 sm:px-4 sm:py-2 rounded-md transition duration-200 whitespace-nowrap text-sm sm:text-base font-bold uppercase ${currentPage === 'roomList' ? 'bg-blue-700 text-white' : 'text-blue-100 hover:bg-blue-600'}`}
                     >
                         Danh sách Phòng
                     </button>
                     <button
                         onClick={() => { setCurrentPage('addRoom'); setSelectedRoom(null); }}
-                        style={{...styles.navButton, ...(currentPage === 'addRoom' ? styles.navButtonActive : {})}}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'addRoom' ? styles.navButtonActive.backgroundColor : styles.navButtonHover.backgroundColor)}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'addRoom' ? styles.navButtonActive.backgroundColor : styles.navButton.backgroundColor)}
+                        className={`px-3 py-2 sm:px-4 sm:py-2 rounded-md transition duration-200 whitespace-nowrap text-sm sm:text-base font-bold uppercase ${currentPage === 'addRoom' ? 'bg-blue-700 text-white' : 'text-blue-100 hover:bg-blue-600'}`}
                     >
                         Thêm Phòng Mới
                     </button>
                     <button
                         onClick={() => { setCurrentPage('serviceSettings'); setSelectedRoom(null); }}
-                        style={{...styles.navButton, ...(currentPage === 'serviceSettings' ? styles.navButtonActive : {})}}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'serviceSettings' ? styles.navButtonActive.backgroundColor : styles.navButtonHover.backgroundColor)}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'serviceSettings' ? styles.navButtonActive.backgroundColor : styles.navButton.backgroundColor)}
+                        className={`px-3 py-2 sm:px-4 sm:py-2 rounded-md transition duration-200 whitespace-nowrap text-sm sm:text-base font-bold uppercase ${currentPage === 'serviceSettings' ? 'bg-blue-700 text-white' : 'text-blue-100 hover:bg-blue-600'}`}
                     >
                         Cài đặt Dịch vụ
                     </button>
                     <button
                         onClick={() => { setCurrentPage('billGenerator'); setSelectedRoom(null); }}
-                        style={{...styles.navButton, ...(currentPage === 'billGenerator' ? styles.navButtonActive : {})}}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'billGenerator' ? styles.navButtonActive.backgroundColor : styles.navButtonHover.backgroundColor)}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'billGenerator' ? styles.navButtonActive.backgroundColor : styles.navButton.backgroundColor)}
+                        className={`px-3 py-2 sm:px-4 sm:py-2 rounded-md transition duration-200 whitespace-nowrap text-sm sm:text-base font-bold uppercase ${currentPage === 'billGenerator' ? 'bg-blue-700 text-white' : 'text-blue-100 hover:bg-blue-600'}`}
                     >
                         Tính Tiền Phòng
                     </button>
                     <button
                         onClick={() => { setCurrentPage('billHistory'); setSelectedRoom(null); }}
-                        style={{...styles.navButton, ...(currentPage === 'billHistory' ? styles.navButtonActive : {})}}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'billHistory' ? styles.navButtonActive.backgroundColor : styles.navButtonHover.backgroundColor)}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'billHistory' ? styles.navButtonActive.backgroundColor : styles.navButton.backgroundColor)}
+                        className={`px-3 py-2 sm:px-4 sm:py-2 rounded-md transition duration-200 whitespace-nowrap text-sm sm:text-base font-bold uppercase ${currentPage === 'billHistory' ? 'bg-blue-700 text-white' : 'text-blue-100 hover:bg-blue-600'}`}
                     >
                         Lịch sử Hóa đơn
                     </button>
                     <button
                         onClick={() => { setCurrentPage('expenseManagement'); setSelectedRoom(null); }}
-                        style={{...styles.navButton, ...(currentPage === 'expenseManagement' ? styles.navButtonActive : {})}}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'expenseManagement' ? styles.navButtonActive.backgroundColor : styles.navButtonHover.backgroundColor)}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'expenseManagement' ? styles.navButtonActive.backgroundColor : styles.navButton.backgroundColor)}
+                        className={`px-3 py-2 sm:px-4 sm:py-2 rounded-md transition duration-200 whitespace-nowrap text-sm sm:text-base font-bold uppercase ${currentPage === 'expenseManagement' ? 'bg-blue-700 text-white' : 'text-blue-100 hover:bg-blue-600'}`}
                     >
                         Quản lý Chi phí
                     </button>
                     <button
                         onClick={() => { setCurrentPage('financialOverview'); setSelectedRoom(null); }}
-                        style={{...styles.navButton, ...(currentPage === 'financialOverview' ? styles.navButtonActive : {})}}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'financialOverview' ? styles.navButtonActive.backgroundColor : styles.navButtonHover.backgroundColor)}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = (currentPage === 'financialOverview' ? styles.navButtonActive.backgroundColor : styles.navButton.backgroundColor)}
+                        className={`px-3 py-2 sm:px-4 sm:py-2 rounded-md transition duration-200 whitespace-nowrap text-sm sm:text-base font-bold uppercase ${currentPage === 'financialOverview' ? 'bg-blue-700 text-white' : 'text-blue-100 hover:bg-blue-600'}`}
                     >
                         Tổng quan Tài chính
                     </button>
                 </div>
             </nav>
 
-            <main style={{...styles.mainContent, ...styles.container}}>
+            <main className="flex-grow container mx-auto p-2 sm:p-4">
                 {currentPage === 'roomList' && (
                     <RoomList
                         rooms={rooms}
@@ -1109,7 +928,7 @@ function App() {
                         room={selectedRoom}
                         onClose={() => { setCurrentPage('roomList'); setSelectedRoom(null); }}
                         onEdit={handleOpenBillEditForm} // Pass the new handler
-                        onDelete={handleDeleteBill} // Pass the delete handler
+                        onDelete={handleDeleteRoom} // Pass the delete handler
                     />
                 )}
                 {currentPage === 'serviceSettings' && serviceSettings && (
@@ -1153,7 +972,7 @@ function App() {
                 )}
             </main>
 
-            <footer style={styles.footer}>
+            <footer className="bg-gray-800 text-white p-4 text-center text-sm shadow-inner">
                 &copy; 2025 - Ứng dụng Quản lý Phòng Trọ by Trí Thành - version: 1.05.2025
             </footer>
         </div>
@@ -1163,42 +982,35 @@ function App() {
 // Component Danh sách Phòng
 const RoomList = ({ rooms, onViewRoom, onEditRoom, onDeleteRoom }) => {
     return (
-        <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Danh sách Phòng</h2>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">Danh sách Phòng</h2>
             {rooms.length === 0 ? (
-                <p style={styles.noDataText}>Chưa có phòng nào được thêm. Hãy thêm một phòng mới!</p>
+                <p className="text-sm sm:text-base text-gray-600">Chưa có phòng nào được thêm. Hãy thêm một phòng mới!</p>
             ) : (
-                <div style={styles.roomGrid}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                     {rooms.map(room => (
-                        <div key={room.id} style={styles.roomCard}
-                            onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'}
-                            onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'}
-                        >
-                            <h3 style={styles.roomCardTitle}>Phòng {room.roomNumber}</h3>
-                            <p style={{fontSize: '0.9em', color: '#333'}}><strong>Trạng thái:</strong> <span style={
-                                room.status === 'Occupied' ? styles.roomStatusOccupied :
-                                room.status === 'Vacant' ? styles.roomStatusVacant :
-                                styles.roomStatusMaintenance
-                            }>{room.status === 'Occupied' ? 'Đang thuê' : room.status === 'Vacant' ? 'Trống' : 'Bảo trì'}</span></p>
-                            {room.tenantName && <p style={{fontSize: '0.9em', color: '#333'}}><strong>Người thuê:</strong> {room.tenantName}</p>}
-                            {room.rentAmount && <p style={{fontSize: '0.9em', color: '#333'}}><strong>Giá thuê:</strong> {parseInt(room.rentAmount).toLocaleString('vi-VN')} VNĐ</p>}
-                            {room.debtAmount > 0 && <p style={{...styles.roomDebt, fontSize: '0.9em'}}><strong>Nợ:</strong> {parseInt(room.debtAmount).toLocaleString('vi-VN')} VNĐ</p>}
-                            <div style={styles.formActionsRight}>
+                        <div key={room.id} className="bg-blue-50 p-3 sm:p-4 rounded-lg shadow-sm border border-blue-200 hover:shadow-md transition duration-200">
+                            <h3 className="text-lg sm:text-xl font-bold text-blue-800 mb-1 sm:mb-2">Phòng {room.roomNumber}</h3>
+                            <p className="text-sm sm:text-base text-gray-700"><strong>Trạng thái:</strong> <span className={`font-semibold ${room.status === 'Occupied' ? 'text-red-600' : room.status === 'Vacant' ? 'text-green-600' : 'text-yellow-600'}`}>{room.status === 'Occupied' ? 'Đang thuê' : room.status === 'Vacant' ? 'Trống' : 'Bảo trì'}</span></p>
+                            {room.tenantName && <p className="text-sm sm:text-base text-gray-700"><strong>Người thuê:</strong> {room.tenantName}</p>}
+                            {room.rentAmount && <p className="text-sm sm:text-base text-gray-700"><strong>Giá thuê:</strong> {parseInt(room.rentAmount).toLocaleString('vi-VN')} VNĐ</p>}
+                            {room.debtAmount > 0 && <p className="text-sm sm:text-base text-red-600 font-semibold"><strong>Nợ:</strong> {parseInt(room.debtAmount).toLocaleString('vi-VN')} VNĐ</p>}
+                            <div className="flex justify-end space-x-2 mt-3 sm:mt-4">
                                 <button
                                     onClick={() => onViewRoom(room)}
-                                    style={{...styles.button, backgroundColor: '#2196F3', fontSize: '0.8em', padding: '5px 10px'}}
+                                    className="px-2 py-1 sm:px-3 sm:py-1 bg-blue-500 text-white rounded-md text-xs sm:text-sm hover:bg-blue-600 transition duration-200"
                                 >
                                     Chi tiết
                                 </button>
                                 <button
                                     onClick={() => onEditRoom(room)}
-                                    style={{...styles.button, backgroundColor: 'orange', fontSize: '0.8em', padding: '5px 10px'}}
+                                    className="px-2 py-1 sm:px-3 sm:py-1 bg-yellow-500 text-white rounded-md text-xs sm:text-sm hover:bg-yellow-600 transition duration-200"
                                 >
                                     Sửa
                                 </button>
                                 <button
                                     onClick={() => onDeleteRoom(room)}
-                                    style={{...styles.button, backgroundColor: 'red', fontSize: '0.8em', padding: '5px 10px'}}
+                                    className="px-2 py-1 sm:px-3 sm:py-1 bg-red-500 text-white rounded-md text-xs sm:text-sm hover:bg-red-600 transition duration-200"
                                 >
                                     Xóa
                                 </button>
@@ -1283,11 +1095,11 @@ const RoomForm = ({ room, onSave, onCancel }) => {
     };
 
     return (
-        <div style={styles.card}>
-            <h2 style={styles.cardTitle}>{room ? 'Chỉnh sửa Phòng' : 'Thêm Phòng Mới'}</h2>
-            <form onSubmit={handleSubmit} style={styles.formGrid}>
-                <div style={styles.formGroup}>
-                    <label htmlFor="roomNumber" style={styles.formLabel}>Số phòng <span style={{color: 'red'}}>*</span></label>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md max-w-full md:max-w-2xl mx-auto">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">{room ? 'Chỉnh sửa Phòng' : 'Thêm Phòng Mới'}</h2>
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+                <div>
+                    <label htmlFor="roomNumber" className="block text-sm font-medium text-gray-700">Số phòng <span className="text-red-500">*</span></label>
                     <input
                         type="text"
                         id="roomNumber"
@@ -1295,19 +1107,19 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                         value={formData.roomNumber}
                         onChange={handleChange}
                         required
-                        style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isSaving}
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="status" style={styles.formLabel}>Trạng thái <span style={{color: 'red'}}>*</span></label>
+                <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700">Trạng thái <span className="text-red-500">*</span></label>
                     <select
                         id="status"
                         name="status"
                         value={formData.status}
                         onChange={handleChange}
                         required
-                        style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isSaving}
                     >
                         <option value="Vacant">Trống</option>
@@ -1317,104 +1129,104 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                 </div>
                 {formData.status === 'Occupied' && (
                     <>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="tenantName" style={styles.formLabel}>Tên người thuê</label>
+                        <div>
+                            <label htmlFor="tenantName" className="block text-sm font-medium text-gray-700">Tên người thuê</label>
                             <input
                                 type="text"
                                 id="tenantName"
                                 name="tenantName"
                                 value={formData.tenantName}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="idCard" style={styles.formLabel}>Số CMND/CCCD</label>
+                        <div>
+                            <label htmlFor="idCard" className="block text-sm font-medium text-gray-700">Số CMND/CCCD</label>
                             <input
                                 type="text"
                                 id="idCard"
                                 name="idCard"
                                 value={formData.idCard}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="address" style={styles.formLabel}>Địa chỉ</label>
+                        <div>
+                            <label htmlFor="address" className="block text-sm font-medium text-gray-700">Địa chỉ</label>
                             <input
                                 type="text"
                                 id="address"
                                 name="address"
                                 value={formData.address}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="hometown" style={styles.formLabel}>Quê quán</label>
+                        <div>
+                            <label htmlFor="hometown" className="block text-sm font-medium text-gray-700">Quê quán</label>
                             <input
                                 type="text"
                                 id="hometown"
                                 name="hometown"
                                 value={formData.hometown}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="phoneNumber" style={styles.formLabel}>Số điện thoại</label>
+                        <div>
+                            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">Số điện thoại</label>
                             <input
                                 type="text"
                                 id="phoneNumber"
                                 name="phoneNumber"
                                 value={formData.phoneNumber}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="rentAmount" style={styles.formLabel}>Giá thuê (VNĐ)</label>
+                        <div>
+                            <label htmlFor="rentAmount" className="block text-sm font-medium text-gray-700">Giá thuê (VNĐ)</label>
                             <input
                                 type="number"
                                 id="rentAmount"
                                 name="rentAmount"
                                 value={formData.rentAmount}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="deposit" style={styles.formLabel}>Tiền đặt cọc (VNĐ)</label>
+                        <div>
+                            <label htmlFor="deposit" className="block text-sm font-medium text-gray-700">Tiền đặt cọc (VNĐ)</label>
                             <input
                                 type="number"
                                 id="deposit"
                                 name="deposit"
                                 value={formData.deposit}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="startDate" style={styles.formLabel}>Ngày bắt đầu thuê</label>
+                        <div>
+                            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Ngày bắt đầu thuê</label>
                             <input
                                 type="date"
                                 id="startDate"
                                 name="startDate"
                                 value={formData.startDate}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="dueDate" style={styles.formLabel}>Ngày đến hạn trả tiền (ngày trong tháng)</label>
+                        <div>
+                            <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">Ngày đến hạn trả tiền (ngày trong tháng)</label>
                             <input
                                 type="number"
                                 id="dueDate"
@@ -1423,104 +1235,104 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                                 onChange={handleChange}
                                 min="1"
                                 max="31"
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="lastPaymentDate" style={styles.formLabel}>Ngày thanh toán gần nhất</label>
+                        <div>
+                            <label htmlFor="lastPaymentDate" className="block text-sm font-medium text-gray-700">Ngày thanh toán gần nhất</label>
                             <input
                                 type="date"
                                 id="lastPaymentDate"
                                 name="lastPaymentDate"
                                 value={formData.lastPaymentDate}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="previousElectricityMeter" style={styles.formLabel}>Chỉ số điện cũ (kỳ hiện tại)</label>
+                        <div>
+                            <label htmlFor="previousElectricityMeter" className="block text-sm font-medium text-gray-700">Chỉ số điện cũ (kỳ hiện tại)</label>
                             <input
                                 type="number"
                                 id="previousElectricityMeter"
                                 name="previousElectricityMeter"
                                 value={formData.previousElectricityMeter}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="currentElectricityMeter" style={styles.formLabel}>Chỉ số điện mới (kỳ hiện tại)</label>
+                        <div>
+                            <label htmlFor="currentElectricityMeter" className="block text-sm font-medium text-gray-700">Chỉ số điện mới (kỳ hiện tại)</label>
                             <input
                                 type="number"
                                 id="currentElectricityMeter"
                                 name="currentElectricityMeter"
                                 value={formData.currentElectricityMeter}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="previousWaterMeter" style={styles.formLabel}>Chỉ số nước cũ (kỳ hiện tại)</label>
+                        <div>
+                            <label htmlFor="previousWaterMeter" className="block text-sm font-medium text-gray-700">Chỉ số nước cũ (kỳ hiện tại)</label>
                             <input
                                 type="number"
                                 id="previousWaterMeter"
                                 name="previousWaterMeter"
                                 value={formData.previousWaterMeter}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="currentWaterMeter" style={styles.formLabel}>Chỉ số nước mới (kỳ hiện tại)</label>
+                        <div>
+                            <label htmlFor="currentWaterMeter" className="block text-sm font-medium text-gray-700">Chỉ số nước mới (kỳ hiện tại)</label>
                             <input
                                 type="number"
                                 id="currentWaterMeter"
                                 name="currentWaterMeter"
                                 value={formData.currentWaterMeter}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="debtAmount" style={styles.formLabel}>Số tiền nợ (VNĐ)</label>
+                        <div>
+                            <label htmlFor="debtAmount" className="block text-sm font-medium text-gray-700">Số tiền nợ (VNĐ)</label>
                             <input
                                 type="number"
                                 id="debtAmount"
                                 name="debtAmount"
                                 value={formData.debtAmount}
                                 onChange={handleChange}
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="debtDescription" style={styles.formLabel}>Mô tả nợ</label>
+                        <div>
+                            <label htmlFor="debtDescription" className="block text-sm font-medium text-gray-700">Mô tả nợ</label>
                             <textarea
                                 id="debtDescription"
                                 name="debtDescription"
                                 value={formData.debtDescription}
                                 onChange={handleChange}
                                 rows="2"
-                                style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isSaving}
                             ></textarea>
                         </div>
                     </>
                 )}
-                <div style={styles.formGroup}>
-                    <label htmlFor="condition" style={styles.formLabel}>Tình trạng phòng</label>
+                <div>
+                    <label htmlFor="condition" className="block text-sm font-medium text-gray-700">Tình trạng phòng</label>
                     <select
                         id="condition"
                         name="condition"
                         value={formData.condition}
                         onChange={handleChange}
-                        style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isSaving}
                     >
                         <option value="Tốt">Tốt</option>
@@ -1529,49 +1341,125 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                     </select>
                 </div>
                 {formData.condition !== 'Tốt' && (
-                    <div style={styles.formGroup}>
-                        <label htmlFor="repairNotes" style={styles.formLabel}>Ghi chú sửa chữa</label>
+                    <div>
+                        <label htmlFor="repairNotes" className="block text-sm font-medium text-gray-700">Ghi chú sửa chữa</label>
                         <textarea
                             id="repairNotes"
                             name="repairNotes"
                             value={formData.repairNotes}
                             onChange={handleChange}
                             rows="2"
-                            style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                             disabled={isSaving}
                         ></textarea>
                     </div>
                 )}
-                <div style={styles.formGroup}>
-                    <label htmlFor="notes" style={styles.formLabel}>Ghi chú chung</label>
+                <div>
+                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Ghi chú chung</label>
                     <textarea
                         id="notes"
                         name="notes"
                         value={formData.notes}
                         onChange={handleChange}
                         rows="3"
-                        style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isSaving}
                     ></textarea>
                 </div>
-                <div style={styles.formActions}>
+                <div className="flex justify-end space-x-3 mt-6">
                     <button
                         type="button"
                         onClick={onCancel}
-                        style={isSaving ? {...styles.button, ...styles.buttonSecondary, ...styles.buttonDisabled} : {...styles.button, ...styles.buttonSecondary}}
+                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition duration-200 text-sm sm:text-base"
                         disabled={isSaving}
                     >
                         Hủy
                     </button>
                     <button
                         type="submit"
-                        style={isSaving ? {...styles.button, ...styles.buttonPrimary, ...styles.buttonDisabled} : {...styles.button, ...styles.buttonPrimary}}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={isSaving}
                     >
                         {isSaving ? 'Đang lưu...' : (room ? 'Cập nhật' : 'Thêm Phòng')}
                     </button>
                 </div>
             </form>
+        </div>
+    );
+};
+
+// Component Modal chi tiết phòng
+const RoomDetailModal = ({ room, onClose, onEdit, onDelete }) => {
+    if (!room) return null;
+
+    return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-full sm:max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]">
+                <div className="flex justify-between items-center mb-3 sm:mb-4">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-800">Chi tiết Phòng {room.roomNumber}</h3>
+                    <button
+                        onClick={onClose}
+                        className="text-2xl sm:text-3xl text-gray-500 hover:text-gray-700"
+                    >
+                        &times;
+                    </button>
+                </div>
+                <div className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-700 mb-4 sm:mb-6">
+                    <p><strong>Trạng thái:</strong> <span className={`font-semibold ${room.status === 'Occupied' ? 'text-red-600' : room.status === 'Vacant' ? 'text-green-600' : 'text-yellow-600'}`}>{room.status === 'Occupied' ? 'Đang thuê' : room.status === 'Vacant' ? 'Trống' : 'Bảo trì'}</span></p>
+                    {room.tenantName && <p><strong>Người thuê:</strong> {room.tenantName}</p>}
+                    {room.idCard && <p><strong>Số CMND/CCCD:</strong> {room.idCard}</p>}
+                    {room.address && <p><strong>Địa chỉ:</strong> {room.address}</p>}
+                    {room.hometown && <p><strong>Quê quán:</strong> {room.hometown}</p>}
+                    {room.phoneNumber && <p><strong>Số điện thoại:</strong> {room.phoneNumber}</p>}
+                    {room.rentAmount && <p><strong>Giá thuê:</strong> {parseInt(room.rentAmount).toLocaleString('vi-VN')} VNĐ</p>}
+                    {room.deposit && <p><strong>Tiền đặt cọc:</strong> {parseInt(room.deposit).toLocaleString('vi-VN')} VNĐ</p>}
+                    {room.startDate && <p><strong>Ngày bắt đầu:</strong> {formatDisplayDate(room.startDate)}</p>}
+                    {room.dueDate && <p><strong>Ngày đến hạn:</strong> ngày {room.dueDate} hàng tháng</p>}
+                    {room.lastPaymentDate && <p><strong>Ngày thanh toán gần nhất:</strong> {formatDisplayDate(room.lastPaymentDate)}</p>}
+                    <p><strong>Chỉ số điện cũ (kỳ hiện tại):</strong> {room.previousElectricityMeter || 'N/A'}</p>
+                    <p><strong>Chỉ số điện mới (kỳ hiện tại):</strong> {room.currentElectricityMeter || 'N/A'}</p>
+                    <p><strong>Chỉ số nước cũ (kỳ hiện tại):</strong> {room.previousWaterMeter || 'N/A'}</p>
+                    <p><strong>Chỉ số nước mới (kỳ hiện tại):</strong> {room.currentWaterMeter || 'N/A'}</p>
+                    {room.debtAmount > 0 && <p className="text-red-600 font-semibold"><strong>Số tiền nợ:</strong> {parseInt(room.debtAmount).toLocaleString('vi-VN')} VNĐ</p>}
+                    {room.debtDescription && <p><strong>Mô tả nợ:</strong> {room.debtDescription}</p>}
+                    <p><strong>Tình trạng phòng:</strong> <span className={`font-semibold ${room.condition === 'Tốt' ? 'text-green-600' : 'text-red-600'}`}>{room.condition}</span></p>
+                    {room.repairNotes && <p><strong>Ghi chú sửa chữa:</strong> {room.repairNotes}</p>}
+                    {room.notes && <p><strong>Ghi chú chung:</strong> {room.notes}</p>}
+
+                    {room.meterHistory && room.meterHistory.length > 0 && (
+                        <div className="mt-3 sm:mt-4 border-t pt-3 sm:pt-4">
+                            <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 sm:mb-2">Lịch sử chỉ số 3 tháng gần nhất:</h4>
+                            {room.meterHistory.map((entry, index) => (
+                                <div key={index} className="mb-1 p-1 sm:mb-2 sm:p-2 bg-gray-50 rounded-md text-xs sm:text-sm">
+                                    <p><strong>Kỳ:</strong> Tháng {entry.month}</p>
+                                    <p>Điện: Cũ {entry.electricityOld} - Mới {entry.electricityNew}</p>
+                                    <p>Nước: Cũ {entry.waterOld} - Mới {entry.waterNew}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <div className="flex justify-end space-x-2 sm:space-x-3">
+                    <button
+                        onClick={() => onEdit(bill)} // Call onEdit with the current bill
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-yellow-500 text-white rounded-md text-sm sm:text-base hover:bg-yellow-600 transition duration-200"
+                    >
+                        Sửa
+                    </button>
+                    <button
+                        onClick={() => { onDelete(bill); onClose(); }} // Call onDelete and then close modal
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-red-500 text-white rounded-md text-sm sm:text-base hover:bg-red-600 transition duration-200"
+                    >
+                        Xóa
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="px-3 py-1 sm:px-4 sm:py-2 bg-gray-200 text-gray-800 rounded-md text-sm sm:text-base hover:bg-gray-300 transition duration-200"
+                    >
+                        Đóng
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
@@ -1598,11 +1486,11 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
     };
 
     return (
-        <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Cài đặt Dịch vụ</h2>
-            <form onSubmit={handleSubmit} style={styles.formGrid}>
-                <div style={styles.formGroup}>
-                    <label htmlFor="electricityPrice" style={styles.formLabel}>Giá điện (VNĐ/kWh)</label>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md max-w-full md:max-w-xl mx-auto">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">Cài đặt Dịch vụ</h2>
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+                <div>
+                    <label htmlFor="electricityPrice" className="block text-sm font-medium text-gray-700">Giá điện (VNĐ/kWh)</label>
                     <input
                         type="number"
                         id="electricityPrice"
@@ -1610,12 +1498,12 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
                         value={formData.electricityPrice}
                         onChange={handleChange}
                         required
-                        style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isSaving}
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="waterPrice" style={styles.formLabel}>Giá nước (VNĐ/m³)</label>
+                <div>
+                    <label htmlFor="waterPrice" className="block text-sm font-medium text-gray-700">Giá nước (VNĐ/m³)</label>
                     <input
                         type="number"
                         id="waterPrice"
@@ -1623,12 +1511,12 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
                         value={formData.waterPrice}
                         onChange={handleChange}
                         required
-                        style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isSaving}
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="internetPrice" style={styles.formLabel}>Giá Internet (VNĐ/tháng)</label>
+                <div>
+                    <label htmlFor="internetPrice" className="block text-sm font-medium text-gray-700">Giá Internet (VNĐ/tháng)</label>
                     <input
                         type="number"
                         id="internetPrice"
@@ -1636,12 +1524,12 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
                         value={formData.internetPrice}
                         onChange={handleChange}
                         required
-                        style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isSaving}
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="trashPrice" style={styles.formLabel}>Giá rác (VNĐ/tháng)</label>
+                <div>
+                    <label htmlFor="trashPrice" className="block text-sm font-medium text-gray-700">Giá rác (VNĐ/tháng)</label>
                     <input
                         type="number"
                         id="trashPrice"
@@ -1649,14 +1537,14 @@ const ServiceSettingsForm = ({ settings, onSave }) => {
                         value={formData.trashPrice}
                         onChange={handleChange}
                         required
-                        style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isSaving}
                     />
                 </div>
-                <div style={styles.formActionsRight}>
+                <div className="flex justify-end mt-4 sm:mt-6">
                     <button
                         type="submit"
-                        style={isSaving ? {...styles.button, ...styles.buttonPrimary, ...styles.buttonDisabled} : {...styles.button, ...styles.buttonPrimary}}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={isSaving}
                     >
                         {isSaving ? 'Đang lưu...' : 'Lưu Cài đặt'}
@@ -1861,16 +1749,16 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalStat
     };
 
     return (
-        <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Tính Tiền Phòng</h2>
-            <div style={styles.formGrid}>
-                <div style={styles.formGroup}>
-                    <label htmlFor="selectRoom" style={styles.formLabel}>Chọn Phòng</label>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md max-w-full md:max-w-3xl mx-auto">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">Tính Tiền Phòng</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div>
+                    <label htmlFor="selectRoom" className="block text-sm font-medium text-gray-700">Chọn Phòng</label>
                     <select
                         id="selectRoom"
                         value={selectedRoomId}
                         onChange={(e) => setSelectedRoomId(e.target.value)}
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isGenerating || isSavingBill}
                     >
                         <option value="">-- Chọn phòng --</option>
@@ -1879,8 +1767,8 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalStat
                         ))}
                     </select>
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="billingMonth" style={styles.formLabel}>Tháng</label>
+                <div>
+                    <label htmlFor="billingMonth" className="block text-sm font-medium text-gray-700">Tháng</label>
                     <input
                         type="number"
                         id="billingMonth"
@@ -1888,86 +1776,86 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalStat
                         onChange={(e) => setBillingMonth(parseInt(e.target.value))}
                         min="1"
                         max="12"
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isGenerating || isSavingBill}
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="billingYear" style={styles.formLabel}>Năm</label>
+                <div>
+                    <label htmlFor="billingYear" className="block text-sm font-medium text-gray-700">Năm</label>
                     <input
                         type="number"
                         id="billingYear"
                         value={billingYear}
                         onChange={(e) => setBillingYear(parseInt(e.target.value))}
                         min="2000"
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isGenerating || isSavingBill}
                     />
                 </div>
             </div>
 
             {currentRoomData && (
-                <div style={styles.infoBox}>
-                    <h3 style={styles.infoBoxTitle}>Thông tin Phòng {currentRoomData.roomNumber}</h3>
-                    <div style={styles.infoBoxContent}>
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm mb-4 sm:mb-6">
+                    <h3 className="text-lg sm:text-xl font-bold text-blue-800 mb-3 sm:mb-4">Thông tin Phòng {currentRoomData.roomNumber}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2 text-sm sm:text-base text-gray-700">
                         <p><strong>Người thuê:</strong> {currentRoomData.tenantName || 'N/A'}</p>
                         <p><strong>Giá thuê:</strong> {parseInt(currentRoomData.rentAmount).toLocaleString('vi-VN')} VNĐ</p>
                         <p><strong>Số điện thoại:</strong> {currentRoomData.phoneNumber || 'N/A'}</p>
                         <p><strong>Ngày đến hạn:</strong> ngày {currentRoomData.dueDate || 'N/A'} hàng tháng</p>
-                        <p style={{color: 'red', fontWeight: 'bold'}}><strong>Nợ hiện tại:</strong> {parseInt(currentRoomData.debtAmount).toLocaleString('vi-VN')} VNĐ</p>
+                        <p><strong>Nợ hiện tại:</strong> <span className="text-red-600 font-semibold">{parseInt(currentRoomData.debtAmount).toLocaleString('vi-VN')} VNĐ</span></p>
                         <p><strong>Mô tả nợ:</strong> {currentRoomData.debtDescription || 'Không có'}</p>
                     </div>
-                    <div style={styles.formGrid}>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="tempPreviousElectricityMeter" style={styles.formLabel}>Chỉ số điện cũ</label>
+                    <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                            <label htmlFor="tempPreviousElectricityMeter" className="block text-sm font-medium text-gray-700">Chỉ số điện cũ</label>
                             <input
                                 type="number"
                                 id="tempPreviousElectricityMeter"
                                 value={tempElectricityMeter.previous}
                                 onChange={(e) => setTempElectricityMeter(prev => ({ ...prev, previous: e.target.value }))}
-                                style={styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isGenerating || isSavingBill}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="tempCurrentElectricityMeter" style={styles.formLabel}>Chỉ số điện mới</label>
+                        <div>
+                            <label htmlFor="tempCurrentElectricityMeter" className="block text-sm font-medium text-gray-700">Chỉ số điện mới</label>
                             <input
                                 type="number"
                                 id="tempCurrentElectricityMeter"
                                 value={tempElectricityMeter.current}
                                 onChange={(e) => setTempElectricityMeter(prev => ({ ...prev, current: e.target.value }))}
-                                style={styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isGenerating || isSavingBill}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="tempPreviousWaterMeter" style={styles.formLabel}>Chỉ số nước cũ</label>
+                        <div>
+                            <label htmlFor="tempPreviousWaterMeter" className="block text-sm font-medium text-gray-700">Chỉ số nước cũ</label>
                             <input
                                 type="number"
                                 id="tempPreviousWaterMeter"
                                 value={tempWaterMeter.previous}
                                 onChange={(e) => setTempWaterMeter(prev => ({ ...prev, previous: e.target.value }))}
-                                style={styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isGenerating || isSavingBill}
                             />
                         </div>
-                        <div style={styles.formGroup}>
-                            <label htmlFor="tempCurrentWaterMeter" style={styles.formLabel}>Chỉ số nước mới</label>
+                        <div>
+                            <label htmlFor="tempCurrentWaterMeter" className="block text-sm font-medium text-gray-700">Chỉ số nước mới</label>
                             <input
                                 type="number"
                                 id="tempCurrentWaterMeter"
                                 value={tempWaterMeter.current}
                                 onChange={(e) => setTempWaterMeter(prev => ({ ...prev, current: e.target.value }))}
-                                style={styles.formInput}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                                 disabled={isGenerating || isSavingBill}
                             />
                         </div>
                     </div>
                     {currentRoomData.meterHistory && currentRoomData.meterHistory.length > 0 && (
-                        <div style={styles.historyBox}>
-                            <h4 style={styles.historyBoxTitle}>Lịch sử chỉ số 3 tháng gần nhất:</h4>
+                        <div className="mt-3 sm:mt-4 border-t pt-3 sm:pt-4">
+                            <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 sm:mb-2">Lịch sử chỉ số 3 tháng gần nhất:</h4>
                             {currentRoomData.meterHistory.map((entry, index) => (
-                                <div key={index} style={styles.historyEntry}>
+                                <div key={index} className="mb-1 p-1 sm:mb-2 sm:p-2 bg-gray-100 rounded-md text-xs sm:text-sm">
                                     <p><strong>Kỳ:</strong> Tháng {entry.month}</p>
                                     <p>Điện: Cũ {entry.electricityOld} - Mới {entry.electricityNew}</p>
                                     <p>Nước: Cũ {entry.waterOld} - Mới {entry.waterNew}</p>
@@ -1978,33 +1866,35 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalStat
                 </div>
             )}
 
-            <div style={styles.formGroup}>
-                <label htmlFor="otherFeesDescription" style={styles.formLabel}>Mô tả phí khác (nếu có)</label>
-                <input
-                    type="text"
-                    id="otherFeesDescription"
-                    value={otherFeesDescription}
-                    onChange={(e) => setOtherFeesDescription(e.target.value)}
-                    style={styles.formInput}
-                    disabled={isGenerating || isSavingBill}
-                />
-            </div>
-            <div style={styles.formGroup}>
-                <label htmlFor="otherFeesAmount" style={styles.formLabel}>Số tiền phí khác (VNĐ)</label>
-                <input
-                    type="number"
-                    id="otherFeesAmount"
-                    value={otherFeesAmount}
-                    onChange={(e) => setOtherFeesAmount(parseFloat(e.target.value) || 0)}
-                    style={styles.formInput}
-                    disabled={isGenerating || isSavingBill}
-                />
+            <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+                <div>
+                    <label htmlFor="otherFeesDescription" className="block text-sm font-medium text-gray-700">Mô tả phí khác (nếu có)</label>
+                    <input
+                        type="text"
+                        id="otherFeesDescription"
+                        value={otherFeesDescription}
+                        onChange={(e) => setOtherFeesDescription(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isGenerating || isSavingBill}
+                    />
+                </div>
+                <div>
+                    <label htmlFor="otherFeesAmount" className="block text-sm font-medium text-gray-700">Số tiền phí khác (VNĐ)</label>
+                    <input
+                        type="number"
+                        id="otherFeesAmount"
+                        value={otherFeesAmount}
+                        onChange={(e) => setOtherFeesAmount(parseFloat(e.target.value) || 0)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        disabled={isGenerating || isSavingBill}
+                    />
+                </div>
             </div>
 
-            <div style={styles.formActionsRight}>
+            <div className="flex justify-end mb-4 sm:mb-6">
                 <button
                     onClick={handleGenerateBill}
-                    style={{...styles.button, ...styles.buttonSuccess}}
+                    className="px-5 py-2 sm:px-6 sm:py-2 bg-green-600 text-white rounded-md text-sm sm:text-base hover:bg-green-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isGenerating || isSavingBill}
                 >
                     {isGenerating ? 'Đang tạo...' : 'Tạo Hóa đơn'}
@@ -2012,15 +1902,15 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalStat
             </div>
 
             {calculatedBill && (
-                <div style={styles.billPreview}>
-                    <h3 style={styles.billPreviewTitle}>Hóa đơn Tiền Phòng - Tháng {calculatedBill.billingMonth}/{calculatedBill.billingYear}</h3>
-                    <div style={styles.infoBoxContent}>
+                <div className="border border-gray-300 rounded-lg p-4 sm:p-6 bg-blue-50">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Hóa đơn Tiền Phòng - Tháng {calculatedBill.billingMonth}/{calculatedBill.billingYear}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2 text-sm sm:text-base text-gray-700">
                         <p><strong>Phòng:</strong> {calculatedBill.roomNumber}</p>
                         <p><strong>Người thuê:</strong> {calculatedBill.tenantName}</p>
                         <p><strong>Tiền phòng tháng này:</strong> {calculatedBill.rentAmount.toLocaleString('vi-VN')} VNĐ</p>
                         <div>
                             <p><strong>Điện:</strong></p>
-                            <ul style={styles.list}>
+                            <ul className="list-disc list-inside ml-4">
                                 <li>Chỉ số cũ: {calculatedBill.previousElectricityMeter}</li>
                                 <li>Chỉ số mới: {calculatedBill.currentElectricityMeter}</li>
                                 <li>Sử dụng: {calculatedBill.electricityUsage} kWh</li>
@@ -2029,7 +1919,7 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalStat
                         </div>
                         <div>
                             <p><strong>Nước:</strong></p>
-                            <ul style={styles.list}>
+                            <ul className="list-disc list-inside ml-4">
                                 <li>Chỉ số cũ: {calculatedBill.previousWaterMeter}</li>
                                 <li>Chỉ số mới: {calculatedBill.currentWaterMeter}</li>
                                 <li>Sử dụng: {calculatedBill.waterUsage} m³</li>
@@ -2041,16 +1931,16 @@ const BillGenerator = ({ rooms, serviceSettings, db, userId, appId, setModalStat
                         {calculatedBill.otherFeesAmount > 0 && (
                             <p><strong>Phí khác ({calculatedBill.otherFeesDescription}):</strong> {calculatedBill.otherFeesAmount.toLocaleString('vi-VN')} VNĐ</p>
                         )}
-                        <p><strong>Các khoản tháng này:</strong> {calculatedBill.currentMonthCharges.toLocaleString('vi-VN')} VNĐ</p>
-                        <p style={{color: 'red', fontWeight: 'bold'}}><strong>Nợ cũ còn lại:</strong> {calculatedBill.outstandingPreviousDebt.toLocaleString('vi-VN')} VNĐ</p>
+                        <p className="col-span-2"><strong>Các khoản tháng này:</strong> {calculatedBill.currentMonthCharges.toLocaleString('vi-VN')} VNĐ</p>
+                        <p className="col-span-2 text-red-600 font-semibold"><strong>Nợ cũ còn lại:</strong> {calculatedBill.outstandingPreviousDebt.toLocaleString('vi-VN')} VNĐ</p>
                     </div>
-                    <div style={styles.billTotal}>
-                        <p style={{fontSize: '1.5em', fontWeight: 'bold', color: 'darkblue'}}>Tổng cộng phải trả: {calculatedBill.totalAmount.toLocaleString('vi-VN')} VNĐ</p>
+                    <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-300 text-right">
+                        <p className="text-xl sm:text-2xl font-bold text-blue-800">Tổng cộng phải trả: {calculatedBill.totalAmount.toLocaleString('vi-VN')} VNĐ</p>
                     </div>
-                    <div style={styles.formActionsRight}>
+                    <div className="flex justify-end space-x-3 mt-4 sm:mt-6">
                         <button
                             onClick={handleSaveBill}
-                            style={{...styles.button, ...styles.buttonPrimary}}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={isSavingBill}
                         >
                             {isSavingBill ? 'Đang lưu...' : 'Lưu Hóa đơn'}
@@ -2095,25 +1985,25 @@ const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, 
 
     const getPaymentStatusColor = (status) => {
         switch (status) {
-            case 'Paid': return 'green';
-            case 'Unpaid': return 'red';
-            case 'Partially Paid': return 'orange';
-            default: return 'black';
+            case 'Paid': return 'bg-green-100 text-green-800';
+            case 'Unpaid': return 'bg-red-100 text-red-800';
+            case 'Partially Paid': return 'bg-yellow-100 text-yellow-800';
+            default: return 'bg-gray-100 text-gray-800';
         }
     };
 
     return (
-        <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Lịch sử Hóa đơn</h2>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">Lịch sử Hóa đơn</h2>
 
-            <div style={styles.formGrid}>
-                <div style={styles.formGroup}>
-                    <label htmlFor="filterRoom" style={styles.formLabel}>Lọc theo Phòng</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div>
+                    <label htmlFor="filterRoom" className="block text-sm font-medium text-gray-700">Lọc theo Phòng</label>
                     <select
                         id="filterRoom"
                         value={filterRoomId}
                         onChange={(e) => setFilterRoomId(e.target.value)}
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                     >
                         <option value="">Tất cả phòng</option>
                         {rooms.map(room => (
@@ -2121,8 +2011,8 @@ const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, 
                         ))}
                     </select>
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="filterMonth" style={styles.formLabel}>Lọc theo Tháng</label>
+                <div>
+                    <label htmlFor="filterMonth" className="block text-sm font-medium text-gray-700">Lọc theo Tháng</label>
                     <input
                         type="number"
                         id="filterMonth"
@@ -2131,11 +2021,11 @@ const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, 
                         min="1"
                         max="12"
                         placeholder="Tháng"
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="filterYear" style={styles.formLabel}>Lọc theo Năm</label>
+                <div>
+                    <label htmlFor="filterYear" className="block text-sm font-medium text-gray-700">Lọc theo Năm</label>
                     <input
                         type="number"
                         id="filterYear"
@@ -2143,16 +2033,16 @@ const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, 
                         onChange={(e) => setFilterYear(parseInt(e.target.value))}
                         min="2000"
                         placeholder="Năm"
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="filterStatus" style={styles.formLabel}>Lọc theo Trạng thái</label>
+                <div>
+                    <label htmlFor="filterStatus" className="block text-sm font-medium text-gray-700">Lọc theo Trạng thái</label>
                     <select
                         id="filterStatus"
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value)}
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                     >
                         <option value="">Tất cả</option>
                         <option value="Unpaid">Chưa thanh toán</option>
@@ -2163,75 +2053,63 @@ const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, 
             </div>
 
             {filteredBills.length === 0 ? (
-                <p style={styles.noDataText}>Không có hóa đơn nào phù hợp với bộ lọc.</p>
+                <p className="text-sm sm:text-base text-gray-600">Không có hóa đơn nào phù hợp với bộ lọc.</p>
             ) : (
-                <div style={styles.tableContainer}>
-                    <table style={styles.table}>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white border border-gray-200 rounded-lg text-sm sm:text-base">
                         <thead>
-                            <tr style={styles.tableHeaderRow}>
-                                <th style={styles.tableHeader}>Mã số HĐ</th>
-                                <th style={styles.tableHeader}>Phòng</th>
-                                <th style={styles.tableHeader}>Người thuê</th>
-                                <th style={styles.tableHeader}>Kỳ</th>
-                                <th style={styles.tableHeader}>Tổng tiền HĐ</th>
-                                <th style={styles.tableHeader}>Nợ cũ HĐ</th>
-                                <th style={styles.tableHeader}>Đã TT HĐ</th>
-                                <th style={styles.tableHeader}>Còn lại HĐ</th>
-                                <th style={styles.tableHeader}>Trạng thái</th>
-                                <th style={styles.tableHeader}>Ngày tạo</th>
-                                <th style={styles.tableHeader}>Ngày TT</th>
-                                <th style={styles.tableHeader}>Hành động</th>
+                            <tr className="bg-gray-100 text-left text-xs sm:text-sm font-semibold text-gray-700 border-b border-gray-200">
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Mã số HĐ</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Phòng</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Người thuê</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Kỳ</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Tổng tiền HĐ</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Nợ cũ HĐ</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Đã TT HĐ</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Còn lại HĐ</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Trạng thái</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Ngày tạo</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Ngày TT</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Hành động</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredBills.map(bill => (
-                                <tr key={bill.id} style={styles.tableRow}
-                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = styles.tableRowHover.backgroundColor}
-                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                >
-                                    <td style={styles.tableCell}>
+                                <tr key={bill.id} className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">
                                         <button
                                             onClick={() => onOpenBillDetailModal(bill)}
-                                            style={styles.linkButton}
+                                            className="text-blue-600 hover:underline font-semibold"
                                         >
                                             {bill.invoiceCode}
                                         </button>
                                     </td>
-                                    <td style={styles.tableCell}>{getRoomNumber(bill.roomId)}</td>
-                                    <td style={styles.tableCell}>{bill.tenantName}</td>
-                                    <td style={styles.tableCell}>Tháng {bill.billingMonth}/{bill.billingYear}</td>
-                                    <td style={styles.tableCell}>{bill.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
-                                    <td style={{...styles.tableCell, color: 'red', fontWeight: 'bold'}}>{(bill.outstandingPreviousDebt || 0).toLocaleString('vi-VN')} VNĐ</td>
-                                    <td style={styles.tableCell}>{(bill.paidAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
-                                    <td style={{...styles.tableCell, color: 'red', fontWeight: 'bold'}}>{(bill.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
-                                    <td style={styles.tableCell}>
-                                        <span style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '12px',
-                                            fontSize: '0.8em',
-                                            fontWeight: 'bold',
-                                            backgroundColor: getPaymentStatusColor(bill.paymentStatus) === 'green' ? '#d4edda' :
-                                                             getPaymentStatusColor(bill.paymentStatus) === 'red' ? '#f8d7da' :
-                                                             getPaymentStatusColor(bill.paymentStatus) === 'orange' ? '#fff3cd' : '#e2e3e5',
-                                            color: getPaymentStatusColor(bill.paymentStatus)
-                                        }}>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{getRoomNumber(bill.roomId)}</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{bill.tenantName}</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">Tháng {bill.billingMonth}/{bill.billingYear}</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{bill.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4 text-red-600 font-semibold">{(bill.outstandingPreviousDebt || 0).toLocaleString('vi-VN')} VNĐ</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{(bill.paidAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4 text-red-600 font-semibold">{(bill.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">
+                                        <span className={`px-1 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs sm:text-xs font-semibold ${getPaymentStatusColor(bill.paymentStatus)}`}>
                                             {getPaymentStatusText(bill.paymentStatus)}
                                         </span>
                                     </td>
-                                    <td style={styles.tableCell}>{formatDisplayDate(bill.billDate)}</td>
-                                    <td style={styles.tableCell}>{bill.paymentDate ? formatDisplayDate(bill.paymentDate) : 'N/A'}</td>
-                                    <td style={styles.tableCell}>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{formatDisplayDate(bill.billDate)}</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{bill.paymentDate ? formatDisplayDate(bill.paymentDate) : 'N/A'}</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">
                                         {bill.paymentStatus !== 'Paid' && (
                                             <button
                                                 onClick={() => onOpenPaymentModal(bill)}
-                                                style={{...styles.button, backgroundColor: 'green', fontSize: '0.8em', padding: '5px 10px'}}
+                                                className="px-2 py-1 bg-green-500 text-white rounded-md text-xs sm:text-sm hover:bg-green-600 transition duration-200"
                                             >
                                                 Thanh toán
                                             </button>
                                         )}
                                         {bill.paymentStatus === 'Paid' && (
                                             <button
-                                                style={{...styles.button, backgroundColor: '#ccc', color: '#666', cursor: 'not-allowed', fontSize: '0.8em', padding: '5px 10px'}}
+                                                className="px-2 py-1 bg-gray-300 text-gray-600 rounded-md text-xs sm:text-sm cursor-not-allowed"
                                                 disabled
                                             >
                                                 Đã TT
@@ -2280,24 +2158,24 @@ const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalSt
     };
 
     return (
-        <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Quản lý Chi phí</h2>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md max-w-full md:max-w-3xl mx-auto">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">Quản lý Chi phí</h2>
 
-            <form onSubmit={handleSubmit} style={styles.formGrid}>
-                <div style={styles.formGroup}>
-                    <label htmlFor="expenseDescription" style={styles.formLabel}>Mô tả chi phí</label>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div>
+                    <label htmlFor="expenseDescription" className="block text-sm font-medium text-gray-700">Mô tả chi phí</label>
                     <input
                         type="text"
                         id="expenseDescription"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         required
-                        style={isAdding ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isAdding}
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="expenseAmount" style={styles.formLabel}>Số tiền (VNĐ)</label>
+                <div>
+                    <label htmlFor="expenseAmount" className="block text-sm font-medium text-gray-700">Số tiền (VNĐ)</label>
                     <input
                         type="number"
                         id="expenseAmount"
@@ -2306,26 +2184,26 @@ const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalSt
                         required
                         min="0"
                         step="1000"
-                        style={isAdding ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isAdding}
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="expenseDate" style={styles.formLabel}>Ngày</label>
+                <div>
+                    <label htmlFor="expenseDate" className="block text-sm font-medium text-gray-700">Ngày</label>
                     <input
                         type="date"
                         id="expenseDate"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
                         required
-                        style={isAdding ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         disabled={isAdding}
                     />
                 </div>
-                <div style={{...styles.formActions, gridColumn: '1 / -1'}}>
+                <div className="md:col-span-3 flex justify-end">
                     <button
                         type="submit"
-                        style={isAdding ? {...styles.button, ...styles.buttonPrimary, ...styles.buttonDisabled} : {...styles.button, ...styles.buttonPrimary}}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={isAdding}
                     >
                         {isAdding ? 'Đang thêm...' : 'Thêm Chi phí'}
@@ -2333,33 +2211,30 @@ const ExpenseManagement = ({ expenses, onAddExpense, onDeleteExpense, setModalSt
                 </div>
             </form>
 
-            <h3 style={styles.sectionTitle}>Danh sách Chi phí</h3>
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">Danh sách Chi phí</h3>
             {expenses.length === 0 ? (
-                <p style={styles.noDataText}>Chưa có chi phí nào được ghi nhận.</p>
+                <p className="text-sm sm:text-base text-gray-600">Chưa có chi phí nào được ghi nhận.</p>
             ) : (
-                <div style={styles.tableContainer}>
-                    <table style={styles.table}>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white border border-gray-200 rounded-lg text-sm sm:text-base">
                         <thead>
-                            <tr style={styles.tableHeaderRow}>
-                                <th style={styles.tableHeader}>Mô tả</th>
-                                <th style={styles.tableHeader}>Số tiền</th>
-                                <th style={styles.tableHeader}>Ngày</th>
-                                <th style={styles.tableHeader}>Hành động</th>
+                            <tr className="bg-gray-100 text-left text-xs sm:text-sm font-semibold text-gray-700 border-b border-gray-200">
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Mô tả</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Số tiền</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Ngày</th>
+                                <th className="py-2 px-3 sm:py-3 sm:px-4">Hành động</th>
                             </tr>
                         </thead>
                         <tbody>
                             {expenses.map(expense => (
-                                <tr key={expense.id} style={styles.tableRow}
-                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = styles.tableRowHover.backgroundColor}
-                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                >
-                                    <td style={styles.tableCell}>{expense.description}</td>
-                                    <td style={styles.tableCell}>{expense.amount.toLocaleString('vi-VN')} VNĐ</td>
-                                    <td style={styles.tableCell}>{formatDisplayDate(expense.date)}</td>
-                                    <td style={styles.tableCell}>
+                                <tr key={expense.id} className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{expense.description}</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{expense.amount.toLocaleString('vi-VN')} VNĐ</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">{formatDisplayDate(expense.date)}</td>
+                                    <td className="py-2 px-3 sm:py-3 sm:px-4">
                                         <button
                                             onClick={() => onDeleteExpense(expense.id)}
-                                            style={{...styles.button, backgroundColor: 'red', fontSize: '0.8em', padding: '5px 10px'}}
+                                            className="px-2 py-1 bg-red-500 text-white rounded-md text-xs sm:text-sm hover:bg-red-600 transition duration-200"
                                         >
                                             Xóa
                                         </button>
@@ -2401,12 +2276,12 @@ const FinancialOverview = ({ bills, expenses }) => {
     const netBalance = totalIncome - totalExpenses;
 
     return (
-        <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Tổng quan Tài chính</h2>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md max-w-full md:max-w-2xl mx-auto">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">Tổng quan Tài chính</h2>
 
-            <div style={styles.formGrid}>
-                <div style={styles.formGroup}>
-                    <label htmlFor="filterMonthOverview" style={styles.formLabel}>Lọc theo Tháng</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div>
+                    <label htmlFor="filterMonthOverview" className="block text-sm font-medium text-gray-700">Lọc theo Tháng</label>
                     <input
                         type="number"
                         id="filterMonthOverview"
@@ -2415,11 +2290,11 @@ const FinancialOverview = ({ bills, expenses }) => {
                         min="1"
                         max="12"
                         placeholder="Tháng"
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                     />
                 </div>
-                <div style={styles.formGroup}>
-                    <label htmlFor="filterYearOverview" style={styles.formLabel}>Lọc theo Năm</label>
+                <div>
+                    <label htmlFor="filterYearOverview" className="block text-sm font-medium text-gray-700">Lọc theo Năm</label>
                     <input
                         type="number"
                         id="filterYearOverview"
@@ -2427,55 +2302,52 @@ const FinancialOverview = ({ bills, expenses }) => {
                         onChange={(e) => setFilterYear(parseInt(e.target.value))}
                         min="2000"
                         placeholder="Năm"
-                        style={styles.formInput}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                     />
                 </div>
             </div>
 
-            <div style={styles.summaryBox}>
-                <div style={styles.summaryItem}>
-                    <p style={styles.summaryLabel}>Tổng thu:</p>
-                    <p style={styles.incomeText}>{totalIncome.toLocaleString('vi-VN')} VNĐ</p>
+            <div className="space-y-3 sm:space-y-4 text-sm sm:text-base text-gray-700">
+                <div className="flex justify-between items-center p-3 bg-green-50 rounded-md">
+                    <p className="font-semibold text-base sm:text-lg">Tổng thu:</p>
+                    <p className="text-green-600 font-bold text-lg sm:text-xl">{totalIncome.toLocaleString('vi-VN')} VNĐ</p>
                 </div>
-                <div style={styles.summaryItem}>
-                    <p style={styles.summaryLabel}>Tổng chi phí:</p>
-                    <p style={styles.expenseText}>{totalExpenses.toLocaleString('vi-VN')} VNĐ</p>
+                <div className="flex justify-between items-center p-3 bg-red-50 rounded-md">
+                    <p className="font-semibold text-base sm:text-lg">Tổng chi phí:</p>
+                    <p className="text-red-600 font-bold text-lg sm:text-xl">{totalExpenses.toLocaleString('vi-VN')} VNĐ</p>
                 </div>
-                <div style={{...styles.summaryItem, backgroundColor: netBalance >= 0 ? '#e0f7fa' : '#ffe0b2'}}>
-                    <p style={styles.summaryLabel}>Số dư ròng:</p>
-                    <p style={{fontWeight: 'bold', fontSize: '1.2em', color: netBalance >= 0 ? 'darkblue' : 'orange'}}>
+                <div className={`flex justify-between items-center p-3 rounded-md ${netBalance >= 0 ? 'bg-blue-50' : 'bg-orange-50'}`}>
+                    <p className="font-semibold text-base sm:text-lg">Số dư ròng:</p>
+                    <p className={`font-bold text-lg sm:text-xl ${netBalance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
                         {netBalance.toLocaleString('vi-VN')} VNĐ
                     </p>
                 </div>
             </div>
 
-            <div style={{marginTop: '20px'}}>
-                <h3 style={styles.sectionTitle}>Phân tích nợ phòng</h3>
+            <div className="mt-6 sm:mt-8">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">Phân tích nợ phòng</h3>
                 {bills.filter(bill => bill.remainingAmount > 0).length === 0 ? (
-                    <p style={styles.noDataText}>Không có hóa đơn nào đang nợ.</p>
+                    <p className="text-sm sm:text-base text-gray-600">Không có hóa đơn nào đang nợ.</p>
                 ) : (
-                    <div style={styles.tableContainer}>
-                        <table style={styles.table}>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white border border-gray-200 rounded-lg text-sm sm:text-base">
                             <thead>
-                                <tr style={styles.tableHeaderRow}>
-                                    <th style={styles.tableHeader}>Phòng</th>
-                                    <th style={styles.tableHeader}>Kỳ</th>
-                                    <th style={styles.tableHeader}>Tổng tiền HĐ</th>
-                                    <th style={styles.tableHeader}>Đã TT HĐ</th>
-                                    <th style={styles.tableHeader}>Còn lại HĐ</th>
+                                <tr className="bg-gray-100 text-left text-xs sm:text-sm font-semibold text-gray-700 border-b border-gray-200">
+                                    <th className="py-2 px-3 sm:py-3 sm:px-4">Phòng</th>
+                                    <th className="py-2 px-3 sm:py-3 sm:px-4">Kỳ</th>
+                                    <th className="py-2 px-3 sm:py-3 sm:px-4">Tổng tiền HĐ</th>
+                                    <th className="py-2 px-3 sm:py-3 sm:px-4">Đã TT HĐ</th>
+                                    <th className="py-2 px-3 sm:py-3 sm:px-4">Còn lại HĐ</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {bills.filter(bill => bill.remainingAmount > 0).map(bill => (
-                                    <tr key={bill.id} style={styles.tableRow}
-                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = styles.tableRowHover.backgroundColor}
-                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                    >
-                                        <td style={styles.tableCell}>{bill.roomNumber}</td>
-                                        <td style={styles.tableCell}>Tháng {bill.billingMonth}/{bill.billingYear}</td>
-                                        <td style={styles.tableCell}>{bill.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
-                                        <td style={styles.tableCell}>{(bill.paidAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
-                                        <td style={{...styles.tableCell, color: 'red', fontWeight: 'bold'}}>{(bill.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
+                                    <tr key={bill.id} className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                                        <td className="py-2 px-3 sm:py-3 sm:px-4">{bill.roomNumber}</td>
+                                        <td className="py-2 px-3 sm:py-3 sm:px-4">Tháng {bill.billingMonth}/{bill.billingYear}</td>
+                                        <td className="py-2 px-3 sm:py-3 sm:px-4">{bill.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
+                                        <td className="py-2 px-3 sm:py-3 sm:px-4">{(bill.paidAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
+                                        <td className="py-2 px-3 sm:py-3 sm:px-4 text-red-600 font-semibold">{(bill.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -2496,436 +2368,3 @@ export default function WrappedApp() {
         </FirebaseProvider>
     );
 }
-
-// Basic CSS Styles
-const styles = {
-    // Global
-    appContainer: {
-        minHeight: '100vh',
-        backgroundColor: '#f0f2f5',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'Arial, sans-serif',
-    },
-    container: {
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '10px',
-        width: '100%',
-        boxSizing: 'border-box',
-    },
-    mainContent: {
-        flexGrow: 1,
-        padding: '10px',
-    },
-    card: {
-        backgroundColor: '#fff',
-        padding: '20px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        marginBottom: '20px',
-        width: '100%',
-        boxSizing: 'border-box',
-    },
-    cardTitle: {
-        fontSize: '1.5em',
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: '15px',
-    },
-    sectionTitle: {
-        fontSize: '1.2em',
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: '10px',
-    },
-    noDataText: {
-        color: '#666',
-        fontSize: '0.9em',
-    },
-
-    // Header
-    header: {
-        backgroundColor: '#1976D2', // Deep Blue
-        color: '#fff',
-        padding: '15px 10px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-    },
-    headerTitle: {
-        fontSize: '1.5em',
-        fontWeight: 'bold',
-        margin: '0',
-    },
-    userIdText: {
-        fontSize: '0.8em',
-        color: '#BBDEFB', // Light Blue
-        wordBreak: 'break-all',
-    },
-    logoutButton: {
-        backgroundColor: '#1565C0', // Darker Blue
-        color: '#fff',
-        border: 'none',
-        padding: '8px 12px',
-        borderRadius: '5px',
-        cursor: 'pointer',
-        fontSize: '0.8em',
-        transition: 'background-color 0.2s',
-        marginLeft: '10px',
-    },
-    logoutButtonHover: {
-        backgroundColor: '#0D47A1', // Even Darker Blue
-    },
-
-    // Navigation
-    nav: {
-        backgroundColor: '#2196F3', // Medium Blue
-        padding: '10px',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-        overflowX: 'auto',
-        whiteSpace: 'nowrap',
-    },
-    navContainer: {
-        display: 'flex',
-        gap: '8px',
-        paddingBottom: '5px', // For scrollbar
-    },
-    navButton: {
-        backgroundColor: 'transparent',
-        color: '#E3F2FD', // Very Light Blue
-        border: 'none',
-        padding: '8px 12px',
-        borderRadius: '5px',
-        cursor: 'pointer',
-        fontSize: '0.9em',
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        transition: 'background-color 0.2s',
-        flexShrink: 0, // Prevent shrinking
-    },
-    navButtonActive: {
-        backgroundColor: '#1976D2', // Deep Blue
-        color: '#fff',
-    },
-    navButtonHover: {
-        backgroundColor: '#1E88E5', // Slightly darker blue
-    },
-
-    // Forms
-    formGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '15px',
-        marginBottom: '15px',
-    },
-    formGroup: {
-        marginBottom: '10px',
-    },
-    formLabel: {
-        display: 'block',
-        fontSize: '0.9em',
-        color: '#555',
-        marginBottom: '5px',
-    },
-    formInput: {
-        width: '100%',
-        padding: '8px',
-        border: '1px solid #ccc',
-        borderRadius: '4px',
-        fontSize: '1em',
-        boxSizing: 'border-box',
-    },
-    formInputDisabled: {
-        backgroundColor: '#eee',
-        cursor: 'not-allowed',
-    },
-    formActions: {
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '10px',
-        marginTop: '20px',
-        gridColumn: '1 / -1', // Span all columns in grid
-    },
-    formActionsRight: {
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '10px',
-        marginTop: '20px',
-    },
-
-    // Buttons
-    button: {
-        padding: '10px 15px',
-        borderRadius: '5px',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '1em',
-        fontWeight: 'bold',
-        transition: 'background-color 0.2s, opacity 0.2s',
-    },
-    buttonPrimary: {
-        backgroundColor: '#2196F3', // Blue
-        color: '#fff',
-    },
-    buttonSecondary: {
-        backgroundColor: '#9E9E9E', // Gray
-        color: '#fff',
-    },
-    buttonSuccess: {
-        backgroundColor: '#4CAF50', // Green
-        color: '#fff',
-    },
-    buttonWarning: {
-        backgroundColor: '#FFC107', // Yellow
-        color: '#333',
-    },
-    buttonDanger: {
-        backgroundColor: '#F44336', // Red
-        color: '#fff',
-    },
-    buttonDisabled: {
-        opacity: 0.6,
-        cursor: 'not-allowed',
-    },
-    linkButton: {
-        background: 'none',
-        border: 'none',
-        color: '#2196F3',
-        textDecoration: 'underline',
-        cursor: 'pointer',
-        padding: '0',
-        fontSize: '1em',
-    },
-
-    // Room List Specific
-    roomGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '15px',
-    },
-    roomCard: {
-        backgroundColor: '#E3F2FD', // Light Blue
-        padding: '15px',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        border: '1px solid #BBDEFB', // Lighter Blue
-    },
-    roomCardTitle: {
-        fontSize: '1.2em',
-        fontWeight: 'bold',
-        color: '#1976D2', // Deep Blue
-        marginBottom: '5px',
-    },
-    roomStatusOccupied: { color: 'red', fontWeight: 'bold' },
-    roomStatusVacant: { color: 'green', fontWeight: 'bold' },
-    roomStatusMaintenance: { color: 'orange', fontWeight: 'bold' },
-    roomDebt: { color: 'red', fontWeight: 'bold' },
-
-    // Info Boxes (for Bill Generator)
-    infoBox: {
-        backgroundColor: '#E3F2FD',
-        padding: '15px',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        marginBottom: '15px',
-    },
-    infoBoxTitle: {
-        fontSize: '1.1em',
-        fontWeight: 'bold',
-        color: '#1976D2',
-        marginBottom: '10px',
-    },
-    infoBoxContent: {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '10px',
-    },
-    historyBox: {
-        marginTop: '15px',
-        paddingTop: '15px',
-        borderTop: '1px solid #BBDEFB',
-    },
-    historyBoxTitle: {
-        fontSize: '1em',
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: '8px',
-    },
-    historyEntry: {
-        marginBottom: '5px',
-        padding: '8px',
-        backgroundColor: '#F0F2F5',
-        borderRadius: '4px',
-        fontSize: '0.9em',
-    },
-
-    // Bill Preview
-    billPreview: {
-        border: '1px solid #BBDEFB',
-        borderRadius: '8px',
-        padding: '20px',
-        backgroundColor: '#E3F2FD',
-    },
-    billPreviewTitle: {
-        fontSize: '1.5em',
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: '15px',
-    },
-    billTotal: {
-        marginTop: '20px',
-        paddingTop: '15px',
-        borderTop: '1px solid #BBDEFB',
-        textAlign: 'right',
-    },
-
-    // Tables
-    tableContainer: {
-        overflowX: 'auto',
-        marginBottom: '20px',
-    },
-    table: {
-        width: '100%',
-        borderCollapse: 'collapse',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        overflow: 'hidden', // Ensures rounded corners apply to table
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    },
-    tableHeaderRow: {
-        backgroundColor: '#E0E0E0', // Light Gray
-        textAlign: 'left',
-        fontSize: '0.9em',
-        fontWeight: 'bold',
-        color: '#555',
-        borderBottom: '1px solid #ccc',
-    },
-    tableHeader: {
-        padding: '10px 12px',
-        whiteSpace: 'nowrap',
-    },
-    tableRow: {
-        borderBottom: '1px solid #eee',
-        transition: 'background-color 0.2s',
-    },
-    tableRowHover: {
-        backgroundColor: '#f5f5f5',
-    },
-    tableCell: {
-        padding: '8px 12px',
-        fontSize: '0.9em',
-        color: '#333',
-        whiteSpace: 'nowrap',
-    },
-
-    // Modals
-    modalOverlay: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px',
-    },
-    modalContent: {
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-        padding: '25px',
-        maxWidth: '400px',
-        width: '100%',
-        boxSizing: 'border-box',
-    },
-    modalContentLarge: {
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-        padding: '25px',
-        maxWidth: '800px',
-        width: '100%',
-        boxSizing: 'border-box',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-    },
-    modalHeader: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '15px',
-    },
-    modalTitle: {
-        fontSize: '1.5em',
-        fontWeight: 'bold',
-        color: '#333',
-        margin: '0',
-    },
-    modalCloseButton: {
-        background: 'none',
-        border: 'none',
-        fontSize: '2em',
-        color: '#666',
-        cursor: 'pointer',
-        lineHeight: '1',
-    },
-    modalMessage: {
-        color: '#555',
-        marginBottom: '20px',
-    },
-    modalText: {
-        marginBottom: '10px',
-    },
-    modalTextBold: {
-        fontWeight: 'bold',
-    },
-    modalActions: {
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '10px',
-        marginTop: '20px',
-    },
-    list: {
-        listStyle: 'disc',
-        marginLeft: '20px',
-        marginBottom: '10px',
-    },
-    loadingContainer: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        backgroundColor: '#f0f2f5',
-    },
-    loadingText: {
-        fontSize: '1.2em',
-        fontWeight: 'bold',
-        color: '#555',
-    },
-    loginTitle: {
-        fontSize: '1.5em',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        color: '#333',
-        marginBottom: '20px',
-    },
-    loginForm: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '15px',
-    },
-    footer: {
-        backgroundColor: '#333',
-        color: '#fff',
-        padding: '15px',
-        textAlign: 'center',
-        fontSize: '0.8em',
-        boxShadow: '0 -2px 4px rgba(0,0,0,0.1)',
-    }
-};
