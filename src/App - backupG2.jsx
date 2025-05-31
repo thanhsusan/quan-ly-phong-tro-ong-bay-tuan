@@ -988,11 +988,11 @@ function App() {
                 />
             )}
             {showBillDetailModal && billToView && (
-                <RoomDetailModal // Changed from BillDetailModal to RoomDetailModal
-                    room={billToView} // Pass room data
+                <BillDetailModal
+                    bill={billToView}
                     onClose={handleCloseBillDetailModal}
-                    onEdit={(room) => { setSelectedRoom(room); setCurrentPage('editRoom'); }} // Corrected: pass handleEditRoom logic
-                    onDelete={handleDeleteRoom} // Corrected: pass handleDeleteRoom
+                    onEdit={handleOpenBillEditForm} // Pass the new handler
+                    onDelete={handleDeleteBill} // Pass the delete handler
                 />
             )}
             {showBillEditForm && billToEdit && (
@@ -1109,8 +1109,8 @@ function App() {
                     <RoomDetailModal
                         room={selectedRoom}
                         onClose={() => { setCurrentPage('roomList'); setSelectedRoom(null); }}
-                        onEdit={(room) => { setSelectedRoom(room); setCurrentPage('editRoom'); }} // Corrected: pass handleEditRoom logic
-                        onDelete={handleDeleteRoom} // Corrected: pass handleDeleteRoom
+                        onEdit={handleOpenBillEditForm} // Pass the new handler
+                        onDelete={handleDeleteBill} // Pass the delete handler
                     />
                 )}
                 {currentPage === 'serviceSettings' && serviceSettings && (
@@ -1175,12 +1175,7 @@ const RoomList = ({ rooms, onViewRoom, onEditRoom, onDeleteRoom }) => {
                             onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'}
                             onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'}
                         >
-                            <h3
-                                style={styles.roomCardTitle} // Removed cursor and text-decoration
-                                // onClick={() => onViewRoom(room)} // Removed onClick
-                            >
-                                Phòng {room.roomNumber}
-                            </h3>
+                            <h3 style={styles.roomCardTitle}>Phòng {room.roomNumber}</h3>
                             <p style={{fontSize: '0.9em', color: '#333'}}><strong>Trạng thái:</strong> <span style={
                                 room.status === 'Occupied' ? styles.roomStatusOccupied :
                                 room.status === 'Vacant' ? styles.roomStatusVacant :
@@ -1190,7 +1185,12 @@ const RoomList = ({ rooms, onViewRoom, onEditRoom, onDeleteRoom }) => {
                             {room.rentAmount && <p style={{fontSize: '0.9em', color: '#333'}}><strong>Giá thuê:</strong> {parseInt(room.rentAmount).toLocaleString('vi-VN')} VNĐ</p>}
                             {room.debtAmount > 0 && <p style={{...styles.roomDebt, fontSize: '0.9em'}}><strong>Nợ:</strong> {parseInt(room.debtAmount).toLocaleString('vi-VN')} VNĐ</p>}
                             <div style={styles.formActionsRight}>
-                                {/* Removed "Chi tiết" button */}
+                                <button
+                                    onClick={() => onViewRoom(room)}
+                                    style={{...styles.button, backgroundColor: '#2196F3', fontSize: '0.8em', padding: '5px 10px'}}
+                                >
+                                    Chi tiết
+                                </button>
                                 <button
                                     onClick={() => onEditRoom(room)}
                                     style={{...styles.button, backgroundColor: 'orange', fontSize: '0.8em', padding: '5px 10px'}}
@@ -1521,7 +1521,6 @@ const RoomForm = ({ room, onSave, onCancel }) => {
                         name="condition"
                         value={formData.condition}
                         onChange={handleChange}
-                        required
                         style={isSaving ? {...styles.formInput, ...styles.formInputDisabled} : styles.formInput}
                         disabled={isSaving}
                     >
@@ -2203,7 +2202,7 @@ const BillHistory = ({ bills, rooms, onOpenPaymentModal, onOpenBillDetailModal, 
                                     <td style={styles.tableCell}>{getRoomNumber(bill.roomId)}</td>
                                     <td style={styles.tableCell}>{bill.tenantName}</td>
                                     <td style={styles.tableCell}>Tháng {bill.billingMonth}/{bill.billingYear}</td>
-                                    <td style={styles.tableCell}>{(bill.totalAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
+                                    <td style={styles.tableCell}>{bill.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
                                     <td style={{...styles.tableCell, color: 'red', fontWeight: 'bold'}}>{(bill.outstandingPreviousDebt || 0).toLocaleString('vi-VN')} VNĐ</td>
                                     <td style={styles.tableCell}>{(bill.paidAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
                                     <td style={{...styles.tableCell, color: 'red', fontWeight: 'bold'}}>{(bill.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
@@ -2476,7 +2475,7 @@ const FinancialOverview = ({ bills, expenses }) => {
                                     >
                                         <td style={styles.tableCell}>{bill.roomNumber}</td>
                                         <td style={styles.tableCell}>Tháng {bill.billingMonth}/{bill.billingYear}</td>
-                                        <td style={styles.tableCell}>{(bill.totalAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
+                                        <td style={styles.tableCell}>{bill.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
                                         <td style={styles.tableCell}>{(bill.paidAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
                                         <td style={{...styles.tableCell, color: 'red', fontWeight: 'bold'}}>{(bill.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</td>
                                     </tr>
